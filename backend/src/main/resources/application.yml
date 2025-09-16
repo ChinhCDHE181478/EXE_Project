@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: backend
+
+
+#  datasource:
+#    url: jdbc:sqlserver://${DATABASE_URL};databaseName=${DATABASE_NAME};encrypt=false;
+#    username: ${DATABASE_USERNAME}
+#    password: ${DATABASE_PASSWORD}
+#    driver-class-name: com.mysql.jdbc.Driver
+#
+#  jpa:
+#    show-sql: true
+#    database-platform: org.hibernate.dialect.SQLServerDialect
+#    hibernate:
+#      ddl-auto: none
+
+#  mail:
+#    host: smtp.gmail.com
+#    port: 587
+#    username: "${MAIL}"
+#    password: "${MAILPASS}"
+#    properties:
+#      mail:
+#        smtp:
+#          auth: true
+#          starttls:
+#            enable: true
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 5MB
+      max-request-size: 10MB
+  ai:
+    openai:
+      api-key: "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"
+      chat:
+        options:
+          model: "gpt-3.5-turbo"
+  docker:
+    compose:
+      enabled: false
+
+#  kafka:
+#    bootstrap-servers: localhost:9092
+#    consumer:
+#      key-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+#      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+#      properties:
+#        spring.json.trusted.packages: "dev.chinhcd.backend.dtos.request.classDTO"
+#    producer:
+#      key-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+#      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+#      acks: "all"
+#      retries: 1
+#      properties:
+#        enable.idempotence: true
+#        max.in.flight.requests.per.connection: 5
+
+#vnpay:
+#  vnpayUrl: "${VNPAY_URL}"
+#  vnp_ReturnUrl: "${VNPAY_RETURN_URL}"
+#  vnp_TmnCode: "${VNPAY_TMP_CODE}"
+#  vnp_SecretKey: "${VNPAY_SECRET_KEY}"
+#  vnp_ApiUrl: "${VNPAY_API_URL}"
+
+server:
+  port: 8080
+  servlet:
+    context-path: "/api/v1"
+
+#jwt:
+#  signerKey: "${SIGNER_KEY}"
+#  refreshSignerKey: "${REFRESH_SIGNER_KEY}"
+#  validTime: 300 #second
+#  refreshTime: 2628000 #second (1 month)
+
+#frontend:
+#  url: "${FRONTEND_URL}"
+
+#cloudinary:
+#  cloud-name: "${CLOUDINARY_CLOUD_NAME}"
+#  api-key: "${CLOUDINARY_API_KEY}"
+#  api-secret: "${CLOUDINARY_API_SECRET}"
