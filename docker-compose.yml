@@ -1,0 +1,86 @@
+version: '3.9'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql-dev
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mydb
+      MYSQL_USER: user
+      MYSQL_PASSWORD: pass
+    ports:
+      - "3307:3307"
+    volumes:
+      - ./backend/mysql_data:/var/lib/mysql
+      - ./backend/init:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin-dev
+    restart: "no"
+    environment:
+      PMA_HOST: mysql      # trỏ vào service mysql
+      PMA_USER: user
+      PMA_PASSWORD: pass
+    ports:
+      - "8081:80"          # mở phpMyAdmin ở http://localhost:8081
+    depends_on:
+      - mysql
+    networks:
+      - app-network
+
+  backend:
+    image: maven:3.9.6-eclipse-temurin-21
+    container_name: backend-dev
+    working_dir: /app
+    volumes:
+      - ./backend:/app        # mount toàn bộ backend
+      - ~/.m2:/root/.m2       # cache Maven local để build nhanh hơn
+    command: ["mvn", "spring-boot:run"]
+    ports:
+      - "8087:8087"
+    depends_on:
+      - mysql
+    networks:
+      - app-network
+
+  frontend:
+    build: ./frontend
+    container_name: frontend-dev
+    ports:
+      - "3007:3007"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    volumes:
+      - ./frontend:/app         
+      - /app/node_modules 
+
+  # agents:
+  #   build: 
+  #     context: ./agents
+  #     dockerfile: Dockerfile
+  #   container_name: agents-dev
+  #   ports:
+  #     - "4000:4000"
+  #   volumes:
+  #     - ./agents:/app
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: all
+  #             capabilities: [gpu]
+  #   networks:
+  #     - app-network
+
+
+networks:
+  app-network:
+    driver: bridge
