@@ -5,16 +5,14 @@ spring:
   datasource:
     username: ${DATABASE_USERNAME}
     password: ${DATABASE_PASSWORD}
-    url: jdbc:mysql://${DATABASE_URL}/${DATABASE_NAME}
-#    url: jdbc:mysql://localhost:3306/mydb
-#    username: user
-#    password: pass
+    url: jdbc:postgresql://${DATABASE_URL}/${DATABASE_NAME}
+    driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
-    database-platform: org.hibernate.dialect.MySQL8Dialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
 
   servlet:
     multipart:
@@ -22,17 +20,24 @@ spring:
       max-file-size: 5MB
       max-request-size: 10MB
 
-  ai:
-    openai:
-      api-key: "${OPENAI_API_KEY}"
-      chat:
-        options:
-          model: "${OPENAI_MODEL}"
+  data:
+    redis:
+      host: "${REDIS_HOST}"
+      port: "${REDIS_PORT}"
+      timeout: 60000
 
-deepseek:
-  api:
-    key: ${DEEPSEEK_API_KEY}
-    url: https://api.deepseek.com/chat/completions
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: "${MAIL}"
+    password: "${MAILPASS}"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 
 server:
   port: 8080
@@ -47,9 +52,54 @@ logging:
 jwt:
   signerKey: "${SIGNER_KEY}"
   refreshSignerKey: "${REFRESH_SIGNER_KEY}"
-  validTime: 300 #second
-  refreshTime: 2628000 #second (1 month)
+  validTime: 3600 #second
+  refreshTime: 86400 #second
 
 frontend:
   url: "${FRONTEND_URL}"
 
+rapid-api:
+  url: "${RAPIDAPI_BOOKINGCOM_URL}"
+  host: "${X_RAPIDAPI_HOST}"
+  key: "${X_RAPIDAPI_KEY}"
+
+outbound:
+  identity:
+    google:
+      token-url: ${OUTBOUND_IDENTITY_GOOGLE_TOKEN_URL}
+      userinfo-url: ${OUTBOUND_IDENTITY_GOOGLE_USERINFO_URL}
+      client-id: "${OUTBOUND_IDENTITY_GOOGLE_CLIENT_ID}"
+      client-secret: "${OUTBOUND_IDENTITY_GOOGLE_CLIENT_SECRET}"
+      redirect-uri: "${OUTBOUND_IDENTITY_GOOGLE_REDIRECT_URI}"
+      grant-type: "${OUTBOUND_IDENTITY_GOOGLE_GRANT_TYPE}"
+
+    facebook:
+      token-url: https://graph.facebook.com/v18.0/oauth/access_token
+      userinfo-url: https://graph.facebook.com/me?fields=id,name,email
+      client-id: "YOUR_FACEBOOK_CLIENT_ID"
+      client-secret: "YOUR_FACEBOOK_CLIENT_SECRET"
+      redirect-uri:
+      grant-type: "authorization_code"
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      rapidApiCB:
+        registerHealthIndicator: true
+        slidingWindowSize: 20         # lấy mẫu 20 request gần nhất
+        failureRateThreshold: 50      # nếu 50% fail -> mở circuit
+        waitDurationInOpenState: 10s  # sau 10s thử lại
+        permittedNumberOfCallsInHalfOpenState: 3
+
+  retry:
+    instances:
+      rapidApiRetry:
+        maxAttempts: 3
+        waitDuration: 500ms
+
+  thread-pool-bulkhead:
+    instances:
+      rapidApiThreadPoolBulkhead:     # 👈 đặt tên instance
+        maxThreadPoolSize: 50       # số thread tối đa xử lý song song
+        coreThreadPoolSize: 10         # thread core
+        queueCapacity: 50             # cho phép tối đa 50 request chờ trong queue
