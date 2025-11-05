@@ -1,0 +1,62 @@
+# ========================
+# Python cache & venv
+# ========================
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.Python
+.python-version
+
+# ========================
+# Node.js / JS / TS build
+# ========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+build/
+.next/
+out/
+
+# ========================
+# Logs & Temp files
+# ========================
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*.pid
+*.seed
+*.pid.lock
+
+# ========================
+# Test / Coverage
+# ========================
+.coverage
+coverage/
+.nyc_output/
+junit.xml
+pytest_cache/
+.mypy_cache/
+.tox/
+
+# ========================
+# IDE / Editor
+# ========================
+.vscode/
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+
+# ========================
+# OS generated files
+# ========================
+.DS_Store
+Thumbs.db

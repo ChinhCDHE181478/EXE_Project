@@ -1,0 +1,37 @@
+fastapi==0.116.1
+uvicorn==0.35.0
+slowapi==0.1.9
+loguru==0.7.3
+langchain==0.3.27
+langchain-core==0.3.76
+langchain-community==0.3.30
+langchain-openai==0.3.33
+langchain-groq==0.3.8
+langgraph==0.6.8
+langchain-tavily==0.2.11
+langgraph-checkpoint-postgres==2.0.24
+langgraph-swarm==0.0.14
+langchain-google-genai==2.1.12
+
+aiohttp==3.12.15
+httpx==0.28.1
+tavily-python==0.7.12
+
+pydantic==2.11.7
+pydantic-settings==2.11.0
+typing_extensions==4.15.0
+
+psycopg[binary,pool]==3.2.10
+redis==6.4.0
+
+langsmith==0.4.31
+
+python-dotenv==1.1.1
+dataclasses-json==0.6.7
+
+# Core
+sqlmodel==0.0.22         # ORM kết hợp SQLAlchemy + Pydantic
+alembic==1.13.1          # Migration DB
+
+# Nếu muốn dùng sync MySQL (tùy chọn)
+pymysql==1.1.0
