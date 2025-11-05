@@ -4,7 +4,31 @@ import { useEffect, useRef, useState } from "react";
 type Msg = { role: "ai" | "user"; content: string };
 type Conv = { id: string; title: string; messages: Msg[] };
 
-/* === Text đầu trang (đã rút gọn) === */
+type EstimatedCost = { min: number; max: number; currency: string };
+type TripSummary = {
+  total_days: number;
+  destinations: string[];
+  estimated_total_budget: EstimatedCost;
+};
+type PlaceRecommendation = { place_id: string; reason: string };
+type ItineraryDay = {
+  date_: string;
+  location: string;
+  morning: string;
+  afternoon: string;
+  evening: string;
+  meals: string[];
+  transportation: string;
+  estimated_cost: EstimatedCost;
+  attraction_recommendations: PlaceRecommendation[];
+  restaurant_recommendations: PlaceRecommendation[];
+};
+type ItineraryResponse = {
+  trip_summary?: TripSummary;
+  itinerary?: ItineraryDay[];
+  notes?: string;
+};
+
 const HERO_TITLE = "Bạn muốn đi đâu, khi nào & ngân sách?";
 const QUICK_SUGGESTS = [
   "HAN ⇄ DAD cuối tuần",
@@ -23,6 +47,10 @@ export default function ChatboxPage() {
   const active = convs.find((c) => c.id === activeId)!;
 
   const [text, setText] = useState("");
+  const [itinerary, setItinerary] = useState<ItineraryDay[]>([]);
+  const [summary, setSummary] = useState<TripSummary | null>(null);
+  const [notes, setNotes] = useState<string | null>(null);
+
   const listRef = useRef<HTMLDivElement | null>(null);
   const isEmpty = active.messages.length === 0;
 
@@ -35,9 +63,11 @@ export default function ChatboxPage() {
     scrollToEnd();
   }, [active?.messages]);
 
-  const send = (preFill?: string) => {
+  // ========= STREAM LOGIC =========
+  const send = async (preFill?: string) => {
     const t = (preFill ?? text).trim();
     if (!t) return;
+
     setConvs((arr) =>
       arr.map((c) =>
         c.id === activeId
@@ -46,25 +76,129 @@ export default function ChatboxPage() {
       )
     );
     setText("");
-    setTimeout(() => {
-      setConvs((arr) =>
-        arr.map((c) =>
-          c.id === activeId
-            ? {
-                ...c,
-                messages: [
-                  ...c.messages,
-                  {
-                    role: "ai",
-                    content:
-                      "Mình sẽ tìm vé, phòng & xe phù hợp nhất theo tiêu chí của bạn. (Demo)",
-                  },
-                ],
-              }
-            : c
-        )
-      );
-    }, 420);
+
+    setConvs((arr) =>
+      arr.map((c) =>
+        c.id === activeId
+          ? { ...c, messages: [...c.messages, { role: "ai", content: "" }] }
+          : c
+      )
+    );
+
+    const response = await fetch(
+      "http://localhost:4000/v1/conversation/stream",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: "4",
+          user_id: "1",
+          content: t,
+        }),
+      }
+    );
+
+    if (!response.body) return;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+
+    let buffer = "";
+    let jsonBuffer = "";
+    let lastAI = "";
+    let addedPlanNotice = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const raw = line.replace("data:", "").trim();
+        if (raw === "[DONE]") break;
+
+        jsonBuffer += raw;
+
+        if (!jsonBuffer.startsWith("{") || !jsonBuffer.endsWith("}")) continue;
+
+        try {
+          const data = JSON.parse(jsonBuffer);
+          jsonBuffer = "";
+
+          // 💬 Chat stream
+          if (data.type === "text-delta") {
+            lastAI += data.delta;
+            setConvs((arr) =>
+              arr.map((c) =>
+                c.id === activeId
+                  ? {
+                      ...c,
+                      messages: c.messages.map((m, idx) =>
+                        idx === c.messages.length - 1
+                          ? { ...m, content: lastAI }
+                          : m
+                      ),
+                    }
+                  : c
+              )
+            );
+          }
+
+          // 🗓️ Itinerary stream
+          if (data.type === "data-itinerary" && data.data) {
+            const trip = data.data as ItineraryResponse;
+
+            if (trip.trip_summary) setSummary(trip.trip_summary);
+
+            const itineraryList = trip.itinerary ?? [];
+            if (Array.isArray(itineraryList) && itineraryList.length > 0) {
+              setItinerary((prev) => {
+                const merged = [...prev];
+                for (const d of itineraryList) {
+                  // bỏ qua các item thiếu date hoặc location
+                  if (!d?.date_ || d.date_.length < 10 || !d.location) continue;
+                  const idx = merged.findIndex((x) => x.date_ === d.date_);
+                  if (idx >= 0) merged[idx] = { ...merged[idx], ...d };
+                  else merged.push(d);
+                }
+                return merged;
+              });
+            }
+
+            if (trip.notes) setNotes(trip.notes);
+
+            if (!addedPlanNotice) {
+              setConvs((arr) =>
+                arr.map((c) =>
+                  c.id === activeId
+                    ? {
+                        ...c,
+                        messages: [
+                          ...c.messages,
+                          {
+                            role: "ai",
+                            content:
+                              "🗓️ Lịch trình của bạn đang được chuẩn bị, vui lòng đợi một chút nha",
+                          },
+                        ],
+                      }
+                    : c
+                )
+              );
+              addedPlanNotice = true;
+            }
+          }
+        } catch (err) {
+          if (!(jsonBuffer.startsWith("{") && jsonBuffer.endsWith("}")))
+            continue;
+          console.warn("⚠️ Parse error:", err, jsonBuffer);
+          jsonBuffer = "";
+        }
+      }
+    }
   };
 
   const newChat = () => {
@@ -76,6 +210,9 @@ export default function ChatboxPage() {
     };
     setConvs((arr) => [next, ...arr]);
     setActiveId(id);
+    setItinerary([]);
+    setSummary(null);
+    setNotes(null);
   };
 
   const deleteActive = () => {
@@ -100,7 +237,7 @@ export default function ChatboxPage() {
       className="relative min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-slate-100"
       onClick={() => setOpenTopMenu(false)}
     >
-      {/* ===== Top-right ellipsis ===== */}
+      {/* Top-right menu */}
       <div className="fixed right-4 top-4 z-30">
         <div className="relative">
           <button
@@ -114,10 +251,7 @@ export default function ChatboxPage() {
             …
           </button>
           {openTopMenu && (
-            <div
-              className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-900/95 ring-1 ring-white/10 shadow-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="absolute right-0 mt-2 w-56 rounded-xl bg-slate-900/95 ring-1 ring-white/10 shadow-2xl overflow-hidden">
               <button className="w-full text-left px-3 py-2 hover:bg-slate-800 text-sm">
                 Di chuyển sang dự án →
               </button>
@@ -143,164 +277,202 @@ export default function ChatboxPage() {
         </div>
       </div>
 
-      {/* ===== Collapsed rail (GIỮ NGUYÊN layout, đổi nút thành logo V màu xanh) ===== */}
-      {!openSidebar && (
-        <div className="fixed left-0 top-0 z-30 h-screen w-[56px] bg-[#070B16] border-r border-white/10 flex flex-col items-center py-3">
-          <button
-            onClick={() => setOpenSidebar(true)}
-            className="mt-1 inline-flex h-9 w-9 items-center justify-center rounded-md"
-            title="Mở danh sách chat"
-          >
-            <div className="h-7 w-7 rounded-md bg-[#0891b2] text-white font-bold grid place-items-center">
-              V
-            </div>
-          </button>
-          <button
-            onClick={newChat}
-            className="mt-2 inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-slate-800"
-            title="Chat mới"
-          >
-            ✚
-          </button>
-          <div className="flex-1" />
-          <div className="mb-2 h-9 w-9 rounded-full bg-slate-700 grid place-items-center">
-            <span className="text-slate-200 text-sm">U</span>
-          </div>
-        </div>
-      )}
-
-      {/* ===== Sidebar (header đã có logo V màu xanh) ===== */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 w-[320px] transform bg-[#070B16] backdrop-blur ring-1 ring-white/10 shadow-2xl transition-transform ${
-          openSidebar ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <div className="relative border-b border-white/10 px-4 py-3 flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-[#0891b2] text-white grid place-items-center font-bold">
-            V
-          </div>
-          <button
-            onClick={() => setOpenSidebar(false)}
-            className="ml-auto rounded-md px-2 py-1 text-slate-300 hover:bg-slate-800"
-            title="Đóng"
-          >
-            ✕
-          </button>
-        </div>
-
-        <div className="p-3 border-b border-white/10">
-          <button
-            onClick={newChat}
-            className="w-full rounded-lg bg-[#0891b2] px-3 py-2 text-white font-medium hover:brightness-110"
-          >
-            + Chat mới
-          </button>
-        </div>
-
-        <div className="p-2 space-y-1 overflow-auto h-[calc(100%-56px-60px-72px)]">
-          {convs.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => {
-                setActiveId(c.id);
-                setOpenSidebar(false);
-              }}
-              className={`w-full text-left rounded-lg px-3 py-2 hover:bg-slate-800/60 ${
-                c.id === activeId
-                  ? "bg-sky-900/40 ring-1 ring-sky-700/40"
-                  : "bg-transparent"
-              }`}
-            >
-              <div className="text-sm font-medium line-clamp-1">{c.title}</div>
-              <div className="text-xs text-slate-400 line-clamp-1">
-                {c.messages.at(-1)?.content || "Chưa có tin nhắn"}
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <div className="absolute inset-x-0 bottom-0 border-t border-white/10 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-slate-700 grid place-items-center">
-              <span className="text-slate-200 text-sm">U</span>
-            </div>
-            <div className="leading-tight">
-              <div className="text-sm font-medium">user01</div>
-              <div className="text-xs text-slate-400">Đang hoạt động</div>
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* ===== Chat area ===== */}
-      <div className="relative z-10 mx-auto max-w-3xl px-4 pt-24 pb-32">
-        {isEmpty ? (
-          <div className="min-h-[60vh] grid place-items-center text-center">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-semibold text-slate-100">
-                {HERO_TITLE}
-              </h1>
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {QUICK_SUGGESTS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => send(s)}
-                    className="rounded-full border border-white/15 bg-slate-900/60 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div
-            ref={listRef}
-            className="max-h-[68vh] min-h-[280px] overflow-auto space-y-3 pr-1"
-          >
-            {active.messages.map((m, i) => (
-              <div
-                key={i}
-                className={`flex ${m.role === "user" ? "justify-end" : ""}`}
-              >
-                <div
-                  className={`rounded-2xl px-4 py-2.5 leading-relaxed shadow-sm max-w-[78%] ${
-                    m.role === "user"
-                      ? "bg-[#0891b2] text-white"
-                      : "bg-slate-800 text-slate-100 ring-1 ring-white/10"
-                  }`}
-                >
-                  {m.content}
+      {/* Chat Area */}
+      {/* ===== Chat + Lịch trình layout ===== */}
+      <div className="relative z-10 mx-auto max-w-7xl px-4 pt-24 pb-32 grid grid-cols-3 gap-6">
+        {/* ==== Chat area (2/3) ==== */}
+        <div className="col-span-2 flex flex-col">
+          {isEmpty ? (
+            <div className="min-h-[60vh] grid place-items-center text-center">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-semibold text-slate-100">
+                  {HERO_TITLE}
+                </h1>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  {QUICK_SUGGESTS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => send(s)}
+                      className="rounded-full border border-white/15 bg-slate-900/60 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      {s}
+                    </button>
+                  ))}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ===== Input bar ===== */}
-      <div
-        className={
-          isEmpty
-            ? "fixed left-1/2 top-[48%] z-20 -translate-x-1/2"
-            : "fixed inset-x-0 bottom-0 z-20 pb-5"
-        }
-      >
-        <div className="mx-auto w-[min(800px,calc(100vw-160px))] px-4">
-          <div className="flex items-center gap-2 rounded-2xl bg-slate-900/70 backdrop-blur ring-1 ring-white/10 shadow-lg">
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Nhập điểm đi/đến, ngày dự kiến và ngân sách…"
-              className="flex-1 rounded-2xl bg-transparent px-4 py-4 outline-none placeholder:text-slate-400 text-slate-100"
-              onKeyDown={(e) => e.key === "Enter" && send()}
-            />
-            <button
-              onClick={() => send()}
-              className="m-1 mr-2 h-11 shrink-0 rounded-xl bg-[#0891b2] px-5 text-white font-medium hover:brightness-110"
+            </div>
+          ) : (
+            <div
+              ref={listRef}
+              className="flex-1 max-h-[65vh] overflow-auto space-y-3 pr-1"
             >
-              Gửi
-            </button>
+              {active.messages.map((m, i) => (
+                <div
+                  key={i}
+                  className={`flex ${m.role === "user" ? "justify-end" : ""}`}
+                >
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 leading-relaxed shadow-sm max-w-[78%] ${
+                      m.role === "user"
+                        ? "bg-[#0891b2] text-white"
+                        : "bg-slate-800 text-slate-100 ring-1 ring-white/10"
+                    }`}
+                  >
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ===== Input bar (auto-height) ===== */}
+          <div className="mt-4">
+            <div className="w-full rounded-2xl bg-slate-900/70 backdrop-blur ring-1 ring-white/10 shadow-lg flex items-end gap-2 p-2">
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Nhập điểm đi/đến, ngày dự kiến và ngân sách…"
+                className="flex-1 resize-none rounded-2xl bg-transparent px-4 py-3 outline-none placeholder:text-slate-400 text-slate-100 max-h-[20rem] overflow-y-auto"
+                rows={1}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "auto";
+                  target.style.height = `${Math.min(
+                    target.scrollHeight,
+                    20 * 16
+                  )}px`; // ~10 dòng
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+              />
+              <button
+                onClick={() => send()}
+                className="h-11 shrink-0 rounded-xl bg-[#0891b2] px-5 text-white font-medium hover:brightness-110"
+              >
+                Gửi
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ==== Itinerary (1/3) ==== */}
+        <div className="col-span-1">
+          <div className="sticky top-20 p-4 bg-slate-900/40 rounded-2xl ring-1 ring-white/10 h-[75vh] overflow-auto shadow-lg">
+            <h2 className="text-lg font-semibold mb-2 text-sky-300">
+              🗓️ Lịch trình gợi ý
+            </h2>
+
+            {itinerary.length === 0 ? (
+              <p className="text-slate-400 italic text-sm mt-3">
+                💭 Chưa có lịch trình nào được sinh ra.
+              </p>
+            ) : (
+              <>
+                {summary && (
+                  <div className="text-sm mb-4 space-y-1">
+                    <p>
+                      <strong>Tổng số ngày:</strong> {summary.total_days}
+                    </p>
+                    <p>
+                      <strong>Điểm đến:</strong>{" "}
+                      {summary.destinations?.join(", ")}
+                    </p>
+                    {summary.estimated_total_budget && (
+                      <p>
+                        <strong>Ngân sách:</strong>{" "}
+                        {summary.estimated_total_budget.min}–
+                        {summary.estimated_total_budget.max}{" "}
+                        {summary.estimated_total_budget.currency}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {itinerary
+                  .filter((d) => d?.date_ && d.date_.length >= 10 && d.location)
+                  .map((day, i) => (
+                    <div
+                      key={i}
+                      className="mb-4 pb-3 border-b border-white/10 last:border-0 text-sm"
+                    >
+                      <p className="font-medium text-sky-200 mb-1">
+                        Ngày {i + 1} — {day.date_} ({day.location})
+                      </p>
+                      {day.morning && (
+                        <p>
+                          🌅 <strong>Sáng:</strong> {day.morning}
+                        </p>
+                      )}
+                      {day.afternoon && (
+                        <p>
+                          🌞 <strong>Chiều:</strong> {day.afternoon}
+                        </p>
+                      )}
+                      {day.evening && (
+                        <p>
+                          🌙 <strong>Tối:</strong> {day.evening}
+                        </p>
+                      )}
+                      {day.meals?.length > 0 && (
+                        <div className="mt-2">
+                          <p className="font-medium text-sky-200">🍽️ Bữa ăn:</p>
+                          <ul className="list-disc list-inside space-y-1">
+                            {day.meals.map((m, idx) => (
+                              <li key={idx}>{m}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {day.transportation && (
+                        <p className="mt-2">
+                          🚗 <strong>Di chuyển:</strong> {day.transportation}
+                        </p>
+                      )}
+                      {day.estimated_cost && (
+                        <p>
+                          💰 <strong>Chi phí:</strong> {day.estimated_cost.min}–
+                          {day.estimated_cost.max} {day.estimated_cost.currency}
+                        </p>
+                      )}
+                      {day.attraction_recommendations?.length > 0 && (
+                        <div className="mt-2">
+                          <p className="font-medium text-sky-200">
+                            📍 Gợi ý tham quan:
+                          </p>
+                          <ul className="list-disc list-inside space-y-1">
+                            {day.attraction_recommendations.map((a, idx) => (
+                              <li key={idx}>{a.reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {day.restaurant_recommendations?.length > 0 && (
+                        <div className="mt-2">
+                          <p className="font-medium text-sky-200">
+                            🍴 Gợi ý nhà hàng:
+                          </p>
+                          <ul className="list-disc list-inside space-y-1">
+                            {day.restaurant_recommendations.map((r, idx) => (
+                              <li key={idx}>{r.reason}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                {notes && (
+                  <div className="mt-4 p-3 bg-slate-800/70 rounded-xl ring-1 ring-white/10 text-sm">
+                    <p className="font-medium text-sky-200 mb-1">📝 Ghi chú:</p>
+                    <p>{notes}</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>

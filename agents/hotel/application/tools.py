@@ -119,6 +119,8 @@ def transfer_to_chatbot(
         graph=Command.PARENT,
     )
 
+transfer_to_chatbot.name = "transfer_to_chatbot"
+
 
 @tool(return_direct=True)
 async def recommend_hotels(
@@ -219,6 +221,8 @@ Return ONLY a valid JSON object. Do not wrap in code fences or tags.
         graph=Command.PARENT,
     )
 
+recommend_hotels.name = "recommend_hotels"
+
 
 @tool
 async def recommend_hotels_multi(
@@ -304,3 +308,5 @@ Return ONLY a valid JSON object. Do not wrap in code fences or tags.
         },
         graph=Command.PARENT,
     )
+
+recommend_hotels_multi.name = "recommend_hotels_multi"

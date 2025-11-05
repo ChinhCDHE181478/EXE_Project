@@ -25,3 +25,5 @@ def transfer_to_chatbot(
         },
         graph=Command.PARENT,
     )
+
+transfer_to_chatbot.name="transfer_to_chatbot"

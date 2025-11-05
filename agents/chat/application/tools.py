@@ -53,6 +53,8 @@ async def search_for_places(queries: list[str], language: str = "en") -> list[Pl
 
     return await search_places_tool.search_for_places(queries, language)
 
+search_for_places.name = "search_for_places"
+
 
 @tool
 async def plan_itinerary(
@@ -104,3 +106,5 @@ Return ONLY a valid JSON object. Do not wrap in code fences or tags.
         },
         graph=Command.PARENT,
     )
+
+plan_itinerary.name = "plan_itinerary"
