@@ -1,13 +1,13 @@
 package exe.project.backend.services;
 
-import exe.project.backend.dtos.local.hotel.DestinationInfo;
+import exe.project.backend.dtos.local.hotel.HotelDestinationInfo;
 import exe.project.backend.dtos.responses.HotelSearchResponse;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 public interface IHotelService {
-    CompletableFuture<DestinationInfo> getHotelDestination(String query);
+    CompletableFuture<HotelDestinationInfo> getHotelDestination(String query);
 
     CompletableFuture<HotelSearchResponse> getHotelByCoordinate(Map<String, String> queries);
 

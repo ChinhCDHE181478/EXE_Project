@@ -33,6 +33,7 @@ public class RapidApiConfig {
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .defaultHeader("X-RapidAPI-Host", host)
                 .defaultHeader("X-RapidAPI-Key", key)
+                .defaultHeader("Host", host)
                 .build();
     }
 }

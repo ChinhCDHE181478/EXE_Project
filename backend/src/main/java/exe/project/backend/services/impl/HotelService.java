@@ -2,8 +2,7 @@ package exe.project.backend.services.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import exe.project.backend.dtos.local.hotel.DestinationInfo;
-import exe.project.backend.dtos.local.hotel.HotelByCoordinate;
+import exe.project.backend.dtos.local.hotel.HotelDestinationInfo;
 import exe.project.backend.dtos.responses.HotelSearchResponse;
 import exe.project.backend.enums.RapidApiEndPoint;
 import exe.project.backend.services.IHotelService;
@@ -23,7 +22,7 @@ public class HotelService implements IHotelService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public CompletableFuture<DestinationInfo> getHotelDestination(String query) {
+    public CompletableFuture<HotelDestinationInfo> getHotelDestination(String query) {
         String endpoint = RapidApiEndPoint.SEARCH_HOTEL_DESTINATION.getPath();
 
         return CompletableFuture.supplyAsync(() -> {
@@ -34,7 +33,7 @@ public class HotelService implements IHotelService {
                 if (response != null && response.isArray() && !response.isEmpty()) {
                     JsonNode dest = response.get(0);
 
-                    return new DestinationInfo(
+                    return new HotelDestinationInfo(
                             dest.path("dest_id").asText(""),      // destinationId
                             dest.path("city_name").asText(""),    // name
                             dest.path("cc1").asText(""),          // country
