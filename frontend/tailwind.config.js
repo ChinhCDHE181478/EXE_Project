@@ -1,18 +1,27 @@
 // tailwind.config.js
-const {heroui} = require("@heroui/react");
+const { heroui } = require("@heroui/react");
 
 /** @type {import('tailwindcss').Config} */
+
 module.exports = {
-  important: true,
   content: [
-    "./src/**/*.{js,ts,jsx,tsx}", // nếu code nằm trong /src
-    "./pages/**/*.{js,ts,jsx,tsx}", // nếu code trong /pages
+    "./src/**/*.{js,ts,jsx,tsx}", 
+    "./pages/**/*.{js,ts,jsx,tsx}", 
     "./components/**/*.{js,ts,jsx,tsx}",
     "./node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    container: {
+      center: true,
+      padding: "1rem",
+      screens: { lg: "1024px", xl: "1200px", "2xl": "1320px" },
+    },
+    extend: {
+      colors: {
+        header: "#08213b", 
+      },
+    },
   },
   darkMode: "class",
-  plugins: [heroui()],
+  plugins: [heroui()], 
 };
