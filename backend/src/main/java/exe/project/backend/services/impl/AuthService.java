@@ -5,6 +5,7 @@ import exe.project.backend.dtos.requests.*;
 import exe.project.backend.dtos.responses.*;
 import exe.project.backend.enums.ErrorCode;
 import exe.project.backend.enums.ProviderType;
+import exe.project.backend.enums.Role;
 import exe.project.backend.exceptions.ServiceException;
 import exe.project.backend.mappers.UserMapper;
 import exe.project.backend.models.OtpVerification;
@@ -143,12 +144,11 @@ public class AuthService implements IAuthService {
     @Override
     public void sendOtpLogin(String email) {
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
-
-        if (user.isDeleteFlag()) {
-            throw new ServiceException(ErrorCode.USER_HAD_BEEN_DELETED);
-        }
+        userRepository.findByEmail(email).ifPresent(user -> {
+            if (user.isDeleteFlag()) {
+                throw new ServiceException(ErrorCode.USER_HAD_BEEN_DELETED);
+            }
+        });
 
         String otp = otpConfig.generateOtp();
 
@@ -162,13 +162,13 @@ public class AuthService implements IAuthService {
 
         otpVerificationRepository.save(otpEntity);
 
-        try{
+        try {
             emailService.sendEmail(
                     email,
                     "Login to Vivuplan",
                     "Your OTP code: " + otp
             );
-        } catch (Exception ignored){}
+        } catch (Exception ignored) {}
     }
 
     @Override
@@ -187,8 +187,15 @@ public class AuthService implements IAuthService {
             throw new ServiceException(ErrorCode.OTP_INVALID);
         }
 
+        // 🔥 TẠO USER NẾU CHƯA TỒN TẠI
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+                .orElseGet(() -> {
+                    User newUser = User.builder()
+                            .email(request.getEmail())
+                            .role(Role.USER) // role mặc định
+                            .build();
+                    return userRepository.save(newUser);
+                });
 
         otp.setUsed(true);
         otpVerificationRepository.save(otp);
@@ -198,6 +205,7 @@ public class AuthService implements IAuthService {
 
         return response;
     }
+
 
     private User findOrRegisterUser(OnboardingUser onboardingUser) {
         return userRepository.findByEmail(onboardingUser.getEmail())
