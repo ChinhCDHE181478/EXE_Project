@@ -8,12 +8,6 @@ import exe.project.backend.dtos.responses.RegisterResponse;
 
 public interface IAuthService {
 
-    LoginResponse login(LoginRequest loginRequest);
-
-    OtpRegisterResponse sendOtpRegister(RegisterRequest registerRequest);
-
-    RegisterResponse registerUser(VerifyOtp verifyOtp);
-
     RefreshTokenResponse refreshToken(RefreshTokenRequest request);
 
     boolean verifyToken(String token);
@@ -21,4 +15,8 @@ public interface IAuthService {
     void logout(LogoutRequest request);
 
     LoginResponse loginWithOauth2O(String code, String provider);
+
+    void sendOtpLogin(String email);
+
+    LoginResponse verifyOtpLogin(VerifyOtp request);
 }

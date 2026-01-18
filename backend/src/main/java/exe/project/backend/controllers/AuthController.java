@@ -19,52 +19,30 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
     private final IAuthService authService;
 
-    @PostMapping("/login")
-    public ResponseEntity<BaseJsonResponse> login(@RequestBody LoginRequest loginRequest) {
-        try {
-            LoginResponse response = authService.login(loginRequest);
-            BaseJsonResponse baseJsonResponse = BaseJsonResponse.builder()
-                    .status(StatusFlag.SUCCESS.getValue())
-                    .message("Login successfully")
-                    .result(response)
-                    .build();
-            return ResponseEntity.ok(baseJsonResponse);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(BaseJsonResponse.builder()
-                    .status(StatusFlag.ERROR.getValue())
-                    .message("User logged in failed")
-                    .build());
-        }
-    }
-
     //send otp to user mail
-    @PostMapping("/otp-register")
-    public ResponseEntity<BaseJsonResponse> sendOtpRegister(@RequestBody RegisterRequest registerRequest) {
-        OtpRegisterResponse response = authService.sendOtpRegister(registerRequest);
+    @PostMapping("/otp-login/{email}")
+    public ResponseEntity<BaseJsonResponse> sendOtpRegister(@PathVariable String email) {
+        authService.sendOtpLogin(email);
         return ResponseEntity.ok(BaseJsonResponse.builder()
                 .status(StatusFlag.SUCCESS.getValue())
                 .message("OTP sent successfully")
-                .result(response)
+                .result("OTP sent successfully")
                 .build());
     }
 
-    //verify otp to register user
-    @PostMapping("/otp-verify")
-    public ResponseEntity<BaseJsonResponse> verifyOtp(@RequestBody VerifyOtp verifyOtp) {
-        try {
-            RegisterResponse response = authService.registerUser(verifyOtp);
-            BaseJsonResponse baseJsonResponse = BaseJsonResponse.builder()
-                    .status(StatusFlag.SUCCESS.getValue())
-                    .message("OTP verified successfully")
-                    .result(response)
-                    .build();
-            return ResponseEntity.ok(baseJsonResponse);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(BaseJsonResponse.builder()
-                    .status(StatusFlag.ERROR.getValue())
-                    .message("OTP verified fail")
-                    .build());
-        }
+    @PostMapping("/otp-login/verify")
+    public ResponseEntity<BaseJsonResponse> loginWithOtp(
+            @RequestBody OtpLoginRequest request) {
+        LoginResponse loginResponse = authService.verifyOtpLogin(
+                new VerifyOtp(request.getEmail(), request.getOtp())
+        );
+        return ResponseEntity.ok(
+                BaseJsonResponse.builder()
+                        .status(StatusFlag.SUCCESS.getValue())
+                        .message("Login successfully")
+                        .result(loginResponse)
+                        .build()
+        );
     }
 
     @PostMapping("/refresh")
