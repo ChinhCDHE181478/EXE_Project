@@ -8,10 +8,10 @@ import com.nimbusds.jwt.SignedJWT;
 import exe.project.backend.models.RefreshToken;
 import exe.project.backend.models.User;
 import exe.project.backend.repositories.IRefreshTokenRepository;
+import exe.project.backend.repositories.TokenBlacklistRepository;
 import exe.project.backend.services.IRefreshTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
@@ -22,8 +22,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class RefreshTokenService implements IRefreshTokenService {
+
     private final IRefreshTokenRepository refreshTokenRepository;
-    private RedisTemplate<String, Object> redisTemplate;
+    private final TokenBlacklistRepository tokenBlacklistRepository;
 
     @Value("${jwt.refreshSignerKey}")
     private String refreshSignerKey;
@@ -36,91 +37,117 @@ public class RefreshTokenService implements IRefreshTokenService {
         return refreshTime;
     }
 
-    @Override
-    public RefreshToken saveRefreshToken(User user, String refreshToken, boolean rememberMe) {
-        Date expireTime = new Date(Instant.now().plusSeconds(rememberMe? refreshTime:60*60*24).toEpochMilli());
-        String jid = extractJwtId(refreshToken);
-        var token = RefreshToken.builder()
-                .id(jid)
-                .expiryTime(expireTime)
-                .user(user)
-                .build();
-        return refreshTokenRepository.save(token);
-    }
+    // ================= CREATE =================
 
     @Override
     public String generateRefreshToken(User user) {
-        var jwsHeader = new JWSHeader(JWSAlgorithm.HS512);
 
-        JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
+        JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
+
+        JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                 .issuer("caodoanhchinh")
                 .subject(user.getEmail())
                 .issueTime(new Date())
-                .expirationTime(new Date(Instant.now().plusSeconds(refreshTime).toEpochMilli()))
+                .expirationTime(
+                        new Date(
+                                Instant.now()
+                                        .plusSeconds(refreshTime)
+                                        .toEpochMilli()
+                        )
+                )
                 .jwtID(UUID.randomUUID().toString())
                 .build();
 
-        Payload payload = new Payload(jwtClaimsSet.toJSONObject());
-
-        var jwsObject = new JWSObject(jwsHeader, payload);
+        JWSObject jwsObject = new JWSObject(
+                header,
+                new Payload(claimsSet.toJSONObject())
+        );
 
         try {
             jwsObject.sign(new MACSigner(refreshSignerKey.getBytes()));
             return jwsObject.serialize();
-        } catch (JOSEException exception) {
-            throw new RuntimeException(exception);
+        } catch (JOSEException e) {
+            throw new RuntimeException("Cannot sign refresh token", e);
         }
     }
+
+    @Override
+    public RefreshToken saveRefreshToken(User user, String refreshToken, boolean rememberMe) {
+
+        Date expiryTime = new Date(
+                Instant.now()
+                        .plusSeconds(rememberMe ? refreshTime : 60 * 60 * 24)
+                        .toEpochMilli()
+        );
+
+        String jti = extractJwtId(refreshToken);
+
+        RefreshToken token = RefreshToken.builder()
+                .id(jti)
+                .expiryTime(expiryTime)
+                .user(user)
+                .build();
+
+        return refreshTokenRepository.save(token);
+    }
+
+    // ================= VALIDATE =================
 
     @Override
     public boolean isValidRefreshToken(String token) {
-        String tokenId = extractJwtId(token);
 
-        Boolean isBlacklisted = redisTemplate.hasKey("BLACKLIST:REFRESH:" + token);
-        if (Boolean.TRUE.equals(isBlacklisted)) {
+        if (tokenBlacklistRepository.existsByToken(token)) {
             return false;
         }
 
-        var checkedToken = refreshTokenRepository.findById(tokenId)
-                .orElse(null);
-        return checkedToken != null && checkedToken.getExpiryTime().after(new Date());
+        String tokenId = extractJwtId(token);
+
+        return refreshTokenRepository.findById(tokenId)
+                .filter(rt -> rt.getExpiryTime().after(new Date()))
+                .isPresent();
     }
+
+    // ================= EXTRACT =================
 
     @Override
     public String extractUserName(String token) {
-        return extractAllClams(token).getSubject();
+        return extractAllClaims(token).getSubject();
     }
 
     @Override
+    public Long getRemainingValidity(String token) {
+        Date expiration = extractAllClaims(token).getExpirationTime();
+        return expiration.getTime() - System.currentTimeMillis();
+    }
+
+    private String extractJwtId(String token) {
+        return extractAllClaims(token).getJWTID();
+    }
+
+    private JWTClaimsSet extractAllClaims(String token) {
+        try {
+            SignedJWT signedJWT = SignedJWT.parse(token);
+
+            if (!signedJWT.verify(new MACVerifier(refreshSignerKey.getBytes()))) {
+                throw new RuntimeException("Refresh token signature verification failed");
+            }
+
+            return signedJWT.getJWTClaimsSet();
+
+        } catch (ParseException | JOSEException e) {
+            throw new RuntimeException("Invalid refresh token", e);
+        }
+    }
+
+    // ================= DELETE =================
+
+    @Override
     public void deleteToken(String token) {
-        String tokenId = extractJwtId(token);
-        refreshTokenRepository.deleteById(tokenId);
+        refreshTokenRepository.deleteById(extractJwtId(token));
     }
 
     @Override
     public void deleteByUserId(Long userId) {
         refreshTokenRepository.deleteByUserId(userId);
-    }
-
-    private JWTClaimsSet extractAllClams(String token) {
-        try {
-            SignedJWT signedJWT = SignedJWT.parse(token);
-            if (!signedJWT.verify(new MACVerifier(refreshSignerKey.getBytes()))) {
-                throw new RuntimeException("JWT signature verification failed");
-            }
-            return signedJWT.getJWTClaimsSet();
-        } catch (ParseException | JOSEException exception) {
-            throw new RuntimeException(exception);
-        }
-    }
-
-    @Override
-    public Long getRemainingValidity(String token) {
-        Date expiration = extractAllClams(token).getExpirationTime();
-        return expiration.getTime() - System.currentTimeMillis();
-    }
-
-    private String extractJwtId(String token) {
-        return extractAllClams(token).getJWTID();
     }
 }

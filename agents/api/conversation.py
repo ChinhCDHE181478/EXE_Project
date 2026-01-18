@@ -127,6 +127,7 @@ async def get_conversation(
 @router.get(
     "/history/{user_id}", response_model=PaginatedResponse[UserConversationResponse]
 )
+
 @limiter.limit("30/minutes")
 async def get_user_conversation_history(
     request: Request,

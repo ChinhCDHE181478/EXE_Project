@@ -6,10 +6,10 @@ import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import exe.project.backend.models.User;
+import exe.project.backend.repositories.TokenBlacklistRepository;
 import exe.project.backend.services.IJwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
@@ -20,7 +20,8 @@ import java.util.StringJoiner;
 @Service
 @RequiredArgsConstructor
 public class JwtService implements IJwtService {
-    private final RedisTemplate<String, Object> redisTemplate;
+
+    private final TokenBlacklistRepository tokenBlacklistRepository;
 
     @Value("${jwt.signerKey}")
     private String signerKey;
@@ -35,14 +36,12 @@ public class JwtService implements IJwtService {
 
     @Override
     public String extractUserName(String token) {
-        JWTClaimsSet claimsSet = extractAllClaims(token);
-        return claimsSet.getSubject();
+        return extractAllClaims(token).getSubject();
     }
 
     @Override
     public Date extractExpiredTime(String token) {
-        JWTClaimsSet claimsSet = extractAllClaims(token);
-        return claimsSet.getExpirationTime();
+        return extractAllClaims(token).getExpirationTime();
     }
 
     @Override
@@ -50,14 +49,20 @@ public class JwtService implements IJwtService {
         return buildToken(user);
     }
 
+    /**
+     * Validate access token:
+     * 1. Không nằm trong blacklist
+     * 2. Đúng user
+     * 3. Chưa hết hạn
+     */
     @Override
     public boolean isValidAcessToken(String token, User user) {
-        String email = extractUserName(token);
 
-        Boolean isBlacklisted = redisTemplate.hasKey("BLACKLIST:ACCESS:" + token);
-        if (Boolean.TRUE.equals(isBlacklisted)) {
+        if (tokenBlacklistRepository.existsByToken(token)) {
             return false;
         }
+
+        String email = extractUserName(token);
 
         return user.getEmail().equals(email) && !isTokenExpired(token);
     }
@@ -68,51 +73,59 @@ public class JwtService implements IJwtService {
         return expiration.getTime() - System.currentTimeMillis();
     }
 
+    // ================= PRIVATE =================
 
     private boolean isTokenExpired(String token) {
-        Date expirationTime = extractExpiredTime(token);
-        return expirationTime.before(new Date());
+        return extractExpiredTime(token).before(new Date());
     }
 
     private JWTClaimsSet extractAllClaims(String token) {
         try {
             SignedJWT signedJWT = SignedJWT.parse(token);
+
             if (!signedJWT.verify(new MACVerifier(signerKey.getBytes()))) {
                 throw new RuntimeException("JWT signature verification failed");
             }
+
             return signedJWT.getJWTClaimsSet();
-        } catch (ParseException | JOSEException exception) {
-            throw new RuntimeException(exception);
+
+        } catch (ParseException | JOSEException e) {
+            throw new RuntimeException("Invalid JWT token", e);
         }
     }
 
     private String buildToken(User user) {
-        var jwsHeader = new JWSHeader(JWSAlgorithm.HS512);
 
-        JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
+        JWSHeader jwsHeader = new JWSHeader(JWSAlgorithm.HS512);
+
+        JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                 .issuer("caodoanhchinh")
                 .subject(user.getEmail())
                 .issueTime(new Date())
-                .expirationTime(new Date(Instant.now().plusSeconds(accessExpire).toEpochMilli()))
+                .expirationTime(
+                        new Date(
+                                Instant.now()
+                                        .plusSeconds(accessExpire)
+                                        .toEpochMilli()
+                        )
+                )
                 .claim("scope", buildScope(user))
                 .build();
 
-        Payload payload = new Payload(jwtClaimsSet.toJSONObject());
-
-        var jwsObject = new JWSObject(jwsHeader, payload);
+        JWSObject jwsObject = new JWSObject(
+                jwsHeader,
+                new Payload(claimsSet.toJSONObject())
+        );
 
         try {
             jwsObject.sign(new MACSigner(signerKey.getBytes()));
             return jwsObject.serialize();
-        } catch (JOSEException exception) {
-            throw new RuntimeException(exception);
+        } catch (JOSEException e) {
+            throw new RuntimeException("Cannot sign JWT", e);
         }
     }
 
     private String buildScope(User user) {
-        StringJoiner stringJoiner = new StringJoiner(" ");
-        stringJoiner.add(user.getRole().name());
-        return stringJoiner.toString();
+        return user.getRole().name();
     }
-
 }

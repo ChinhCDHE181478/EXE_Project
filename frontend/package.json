@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@heroui/react": "^2.8.5",
+    "axios": "^1.13.2",
     "framer-motion": "^12.23.22",
     "next": "15.5.3",
     "postcss": "^8.5.6",

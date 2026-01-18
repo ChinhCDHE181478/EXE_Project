@@ -9,6 +9,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class TempRegisterData {
     private String email;
-    private String password;
     private String otp;
 }
