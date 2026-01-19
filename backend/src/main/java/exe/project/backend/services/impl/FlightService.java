@@ -50,8 +50,21 @@ public class FlightService implements IFlightService {
 
     @Override
     public CompletableFuture<FlightSearchResponse> searchFlight(Map<String, String> queries) {
+        String endpoint = RapidApiEndPoint.SEARCH_FLIGHT.getPath();
 
-        return null;
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                JsonNode dataNode = rapidApiService.sendGetDataNode(endpoint, queries);
+                if (dataNode != null) {
+                    // Map JsonNode "data" sang DTO HotelSearchResponse
+                    return objectMapper.treeToValue(dataNode, FlightSearchResponse.class);
+                }
+                return null;
+            } catch (Exception e) {
+                log.error("❌ Error fetching flights by coordinate: {}", e.getMessage(), e);
+                return null;
+            }
+        });
     }
 
     @Override

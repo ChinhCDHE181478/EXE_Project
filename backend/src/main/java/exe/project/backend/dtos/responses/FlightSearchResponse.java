@@ -50,9 +50,15 @@ public class FlightSearchResponse {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Airport {
+        private String code;
+
         private String name;
 
+        private String city;
+
         private String cityName;
+
+        private String country;
 
         private String countryName;
     }
