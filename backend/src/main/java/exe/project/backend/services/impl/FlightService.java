@@ -22,6 +22,7 @@ public class FlightService implements IFlightService {
     private final RapidApiService rapidApiService;
     private final ObjectMapper objectMapper;
 
+
     @Override
     public CompletableFuture<FlightDestinationInfor> getFlightDestination(String query, String languagecode) {
         String endpoint = RapidApiEndPoint.SEARCH_FLIGHT_DESTINATION.getPath();
@@ -35,7 +36,7 @@ public class FlightService implements IFlightService {
                     // duyệt toàn bộ array để tìm phần tử có type = CITY
                     for (JsonNode dest : response) {
                         JsonNode typeNode = dest.get("type");
-                        if (typeNode != null && "CITY".equalsIgnoreCase(typeNode.asText())) {
+                        if (typeNode != null && "AIRPORT".equalsIgnoreCase(typeNode.asText())) {
                             return objectMapper.treeToValue(dest, FlightDestinationInfor.class);
                         }
                     }
@@ -48,24 +49,57 @@ public class FlightService implements IFlightService {
         });
     }
 
+
     @Override
     public CompletableFuture<FlightSearchResponse> searchFlight(Map<String, String> queries) {
         String endpoint = RapidApiEndPoint.SEARCH_FLIGHT.getPath();
 
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                JsonNode dataNode = rapidApiService.sendGetDataNode(endpoint, queries);
-                if (dataNode != null) {
-                    // Map JsonNode "data" sang DTO HotelSearchResponse
-                    return objectMapper.treeToValue(dataNode, FlightSearchResponse.class);
-                }
-                return null;
-            } catch (Exception e) {
-                log.error("❌ Error fetching flights by coordinate: {}", e.getMessage(), e);
-                return null;
-            }
-        });
+        CompletableFuture<FlightDestinationInfor> fromFuture =
+                getFlightDestination(queries.get("from"), "vi")
+                        .exceptionally(ex -> {
+                            log.error("From destination failed", ex);
+                            return null;
+                        });
+
+        CompletableFuture<FlightDestinationInfor> toFuture =
+                getFlightDestination(queries.get("to"), "vi")
+                        .exceptionally(ex -> {
+                            log.error("To destination failed", ex);
+                            return null;
+                        });
+
+        return CompletableFuture
+                .allOf(fromFuture, toFuture)
+                .thenCompose(v -> {
+
+                    FlightDestinationInfor from = fromFuture.join();
+                    FlightDestinationInfor to = toFuture.join();
+
+                    queries.put("fromId", from.getDestinationId());
+                    queries.put("toId", to.getDestinationId());
+                    queries.remove("from");
+                    queries.remove("to");
+
+                    return CompletableFuture.supplyAsync(() -> {
+                        try {
+                            JsonNode dataNode =
+                                    rapidApiService.sendGetDataNode(endpoint, queries);
+
+                            if (dataNode != null) {
+                                return objectMapper.treeToValue(
+                                        dataNode,
+                                        FlightSearchResponse.class
+                                );
+                            }
+                            return null;
+                        } catch (Exception e) {
+                            log.error("❌ Error fetching flights: {}", e.getMessage(), e);
+                            return null;
+                        }
+                    });
+                });
     }
+
 
     @Override
     public CompletableFuture<String> getLink(Map<String, String> queries) {

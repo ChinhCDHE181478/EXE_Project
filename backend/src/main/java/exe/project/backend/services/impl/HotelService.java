@@ -35,6 +35,7 @@ public class HotelService implements IHotelService {
 
                     return new HotelDestinationInfo(
                             dest.path("dest_id").asText(""),      // destinationId
+                            dest.path("dest_type").asText(""),
                             dest.path("city_name").asText(""),    // name
                             dest.path("cc1").asText(""),          // country
                             dest.path("latitude").asDouble(0.0),  // latitude
@@ -92,6 +93,7 @@ public class HotelService implements IHotelService {
             updatedQueries.put("latitude", destination.getLatitude().toString());
             updatedQueries.put("longitude", destination.getLongitude().toString());
             updatedQueries.put("radius", "20");
+            updatedQueries.put("search_type", destination.getDest_type().toUpperCase());
 
             log.info("📌 Updated query params gửi đi: {}", updatedQueries);
 
