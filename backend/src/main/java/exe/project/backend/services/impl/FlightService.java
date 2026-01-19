@@ -86,10 +86,34 @@ public class FlightService implements IFlightService {
                                     rapidApiService.sendGetDataNode(endpoint, queries);
 
                             if (dataNode != null) {
-                                return objectMapper.treeToValue(
-                                        dataNode,
-                                        FlightSearchResponse.class
-                                );
+                                FlightSearchResponse response =
+                                        objectMapper.treeToValue(
+                                                dataNode,
+                                                FlightSearchResponse.class
+                                        );
+
+                                // 🔁 Lặp và gán custom link
+                                if (response.getFlightOffers() != null) {
+                                    for (FlightSearchResponse.FlightOffers offer : response.getFlightOffers()) {
+
+                                        if (offer.getSegments() == null || offer.getSegments().isEmpty()) {
+                                            continue;
+                                        }
+
+                                        String customLink = "https://flights.booking.com/flights/"
+                                                + offer.getSegments().getFirst().getDepartureAirport().getCode() + ".AIRPORT-"
+                                                + offer.getSegments().getFirst().getArrivalAirport().getCode() + ".AIRPORT/d7699_"
+                                                + offer.getToken().substring(6)
+                                                + "/?type=" + offer.getTripType()
+                                                + "&adults=" + queries.get("adults") + "&children=";
+                                        if(queries.get("childrenAge") != null) {
+                                            customLink += queries.get("childrenAge");
+                                        }
+                                        offer.setLinkFFFlight(customLink);
+                                    }
+                                }
+
+                                return response;
                             }
                             return null;
                         } catch (Exception e) {
