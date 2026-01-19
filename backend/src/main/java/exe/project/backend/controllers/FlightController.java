@@ -3,6 +3,7 @@ package exe.project.backend.controllers;
 import exe.project.backend.dtos.base.BaseJsonResponse;
 import exe.project.backend.enums.StatusFlag;
 import exe.project.backend.services.IFlightService;
+import exe.project.backend.utils.QueryParamUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
@@ -39,8 +42,45 @@ public class FlightController {
 
     @GetMapping("/search")
     public CompletableFuture<ResponseEntity<BaseJsonResponse>> search(
-            @RequestParam String query
+            @RequestParam String from,
+            @RequestParam String to,
+            @RequestParam String departDate,
+            @RequestParam(required = false, defaultValue = "") String returnDate,
+            @RequestParam(required = false, defaultValue = "1") String page,
+            @RequestParam(required = false, defaultValue = "") String adults,
+            @RequestParam(required = false, defaultValue = "") String childrenAge,
+            @RequestParam(required = false, defaultValue = "") String cabinClass,
+            @RequestParam(required = false, defaultValue = "VND") String currency_code
     ) {
-        return null;
+        Map<String, String> queries = new HashMap<>();
+        queries.put("from", from);
+        queries.put("to", to);
+        queries.put("departDate", departDate);
+        queries.put("page", page);
+        queries.put("currency_code", currency_code);
+
+        QueryParamUtil.addIfNotNull(queries,
+                "adults", adults,
+                "childrenAge", childrenAge,
+                "cabinClass", cabinClass,
+                "returnDate", returnDate
+        );
+
+        return flightService.searchFlight(queries)
+                .thenApply(result -> {
+                    BaseJsonResponse baseJsonResponse = BaseJsonResponse.builder()
+                            .status(StatusFlag.SUCCESS.getValue())
+                            .message("Get flights successfully")
+                            .result(result)
+                            .build();
+                    return ResponseEntity.ok(baseJsonResponse);
+                })
+                .exceptionally(ex -> ResponseEntity.badRequest().body(
+                        BaseJsonResponse.builder()
+                                .status(StatusFlag.ERROR.getValue())
+                                .message("Get flights error: " + ex.getMessage())
+                                .build()
+                ));
     }
+
 }

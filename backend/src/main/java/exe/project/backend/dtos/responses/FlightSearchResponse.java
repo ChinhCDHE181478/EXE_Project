@@ -24,7 +24,38 @@ public class FlightSearchResponse {
     public static class FlightOffers {
         private String token;
 
+        private String link;
+
+        private String tripType;
+
         private List<Segments> segments;
+
+        private PriceBreakdown priceBreakdown;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class PriceBreakdown {
+        private Price total;
+        private Price baseFare;
+        private Price fee;
+        private Price tax;
+        private Price totalRounded;
+        private Price discount;
+        private Price totalWithoutDiscount;
+        private Price totalWithoutDiscountRounded;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Price {
+        private String currencyCode;
+        private String units;
+        private String nanos;
     }
 
     @Data

@@ -16,6 +16,6 @@ public class FlightDestinationInfor {
 
     private String type;
     private String name;
-    private Double country;
-    private Double countryName;
+    private String country;
+    private String countryName;
 }

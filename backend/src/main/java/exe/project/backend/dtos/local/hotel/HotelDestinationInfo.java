@@ -14,6 +14,7 @@ public class HotelDestinationInfo {
     @JsonProperty("destination_id")
     private String destinationId;
 
+    private String dest_type;
     private String name;
     private String country;
     private Double latitude;
