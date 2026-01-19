@@ -44,20 +44,19 @@ public class HotelController {
             @RequestParam String destination,
             @RequestParam String arrivalDate,
             @RequestParam String departureDate,
-            @RequestParam(defaultValue = "") String roomQty,
-            @RequestParam(defaultValue = "1") String adults,
-            @RequestParam(defaultValue = "") String childrenAge,
-            @RequestParam(defaultValue = "1") String pageNumber,
-            @RequestParam(defaultValue = "") String priceMin,
-            @RequestParam(defaultValue = "") String priceMax,
-            @RequestParam(defaultValue = "en-us") String languagecode,  // vi: tieng viet
-            @RequestParam(defaultValue = "USD") String currencyCode   // VND
+            @RequestParam(required = false, defaultValue = "") String roomQty,
+            @RequestParam(required = false, defaultValue = "") String adults,
+            @RequestParam(required = false, defaultValue = "") String childrenAge,
+            @RequestParam(required = false, defaultValue = "1") String pageNumber,
+            @RequestParam(required = false, defaultValue = "") String priceMin,
+            @RequestParam(required = false, defaultValue = "") String priceMax,
+            @RequestParam(required = false, defaultValue = "vi") String languagecode,  // en-us
+            @RequestParam(required = false, defaultValue = "VND") String currencyCode   // VND
     ) {
         Map<String, String> queries = new java.util.HashMap<>(Map.ofEntries(
                 Map.entry("destination", destination),
                 Map.entry("arrival_date", arrivalDate),
                 Map.entry("departure_date", departureDate),
-                Map.entry("adults", adults),
                 Map.entry("page_number", pageNumber),
                 Map.entry("languagecode", languagecode),
                 Map.entry("currency_code", currencyCode),
@@ -69,7 +68,8 @@ public class HotelController {
                 "price_max", priceMax,
                 "room_qty", roomQty,
                 "price_min", priceMin,
-                "children_age", childrenAge
+                "children_age", childrenAge,
+                "adults", adults
         );
 
         return hotelService.searchHotel(queries)
@@ -95,15 +95,15 @@ public class HotelController {
             @RequestParam String longitude,
             @RequestParam String arrivalDate,
             @RequestParam String departureDate,
-            @RequestParam(defaultValue = "") String roomQty,
-            @RequestParam(defaultValue = "20") String radius,
-            @RequestParam(defaultValue = "1") String adults,
-            @RequestParam(defaultValue = "") String childrenAge,
-            @RequestParam(defaultValue = "") String priceMin,
-            @RequestParam(defaultValue = "") String priceMax,
-            @RequestParam(defaultValue = "1") String pageNumber,
-            @RequestParam(defaultValue = "en-us") String languagecode,
-            @RequestParam(defaultValue = "USD") String currencyCode
+            @RequestParam(required = false, defaultValue = "") String roomQty,
+            @RequestParam(required = false, defaultValue = "20") String radius,
+            @RequestParam(required = false, defaultValue = "") String adults,
+            @RequestParam(required = false, defaultValue = "") String childrenAge,
+            @RequestParam(required = false, defaultValue = "") String priceMin,
+            @RequestParam(required = false, defaultValue = "") String priceMax,
+            @RequestParam(required = false, defaultValue = "1") String pageNumber,
+            @RequestParam(required = false, defaultValue = "vi") String languagecode,
+            @RequestParam(required = false, defaultValue = "VND") String currencyCode
     ) {
         Map<String, String> queries = new java.util.HashMap<>(Map.ofEntries(
                 Map.entry("latitude", latitude),
@@ -111,7 +111,6 @@ public class HotelController {
                 Map.entry("arrival_date", arrivalDate),
                 Map.entry("departure_date", departureDate),
                 Map.entry("radius", radius),
-                Map.entry("adults", adults),
                 Map.entry("page_number", pageNumber),
                 Map.entry("languagecode", languagecode),
                 Map.entry("currency_code", currencyCode),
@@ -123,7 +122,8 @@ public class HotelController {
                 "price_max", priceMax,
                 "room_qty", roomQty,
                 "price_min", priceMin,
-                "children_age", childrenAge
+                "children_age", childrenAge,
+                "adults", adults
         );
 
         return hotelService.getHotelByCoordinate(queries)
@@ -148,16 +148,15 @@ public class HotelController {
             @RequestParam String hotelId,
             @RequestParam String arrivalDate,
             @RequestParam String departureDate,
-            @RequestParam(defaultValue = "1") String adults,
-            @RequestParam(defaultValue = "") String childrenAge,
-            @RequestParam(defaultValue = "en-us") String languagecode,
-            @RequestParam(defaultValue = "USD") String currencyCode
+            @RequestParam(required = false, defaultValue = "") String adults,
+            @RequestParam(required = false, defaultValue = "") String childrenAge,
+            @RequestParam(required = false, defaultValue = "vi") String languagecode,
+            @RequestParam(required = false, defaultValue = "VND") String currencyCode
     ) {
         Map<String, String> queries = new java.util.HashMap<>(Map.ofEntries(
                 Map.entry("hotel_id", hotelId),
                 Map.entry("arrival_date", arrivalDate),
                 Map.entry("departure_date", departureDate),
-                Map.entry("adults", adults),
                 Map.entry("languagecode", languagecode),
                 Map.entry("currency_code", currencyCode),
                 Map.entry("units", "metric"),
@@ -165,7 +164,8 @@ public class HotelController {
         ));
 
         QueryParamUtil.addIfNotNull(queries,
-                "children_age", childrenAge
+                "children_age", childrenAge,
+                "adults", adults
         );
 
         return hotelService.getLink(queries)
