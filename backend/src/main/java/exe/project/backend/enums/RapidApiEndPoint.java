@@ -8,7 +8,8 @@ public enum RapidApiEndPoint {
     SEARCH_HOTEL_DESTINATION("/hotels/searchDestination"),
     GET_HOTEL_DETAIL("/hotels/getHotelDetails"),
 
-    SEARCH_FLIGHT_DESTINATION("/flights/searchDestination");
+    SEARCH_FLIGHT_DESTINATION("/flights/searchDestination"),
+    SEARCH_FLIGHT("/flights/searchFlights"),;
 
     private final String path;
 
