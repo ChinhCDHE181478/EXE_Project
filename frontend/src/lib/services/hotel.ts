@@ -1,31 +1,132 @@
-// services/hotelService.ts
 import { apiFetch } from "../apiClient";
 
+/**
+ * Standard API envelope used by backend
+ * Example:
+ * {
+ *   status: "SUCCESS",
+ *   message: "...",
+ *   result: { ... }
+ * }
+ */
+export type BaseJsonResponse<T = any> = {
+  status: string | number;
+  message?: string;
+  result?: T;
+};
+
+function isSuccess(status: any) {
+  const s = String(status).toUpperCase();
+  return s === "SUCCESS" || s === "1";
+}
+
+function unwrap<T>(res: any, fallbackMsg: string): T {
+  // If apiFetch returns the BaseJsonResponse envelope
+  if (res && typeof res === "object" && "status" in res) {
+    if (!isSuccess(res.status)) {
+      throw new Error(res.message || fallbackMsg);
+    }
+    return (res.result ?? res) as T;
+  }
+  // If apiFetch already unwraps
+  return res as T;
+}
+
+function qs(params: Record<string, any>) {
+  const sp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    const s = String(v).trim();
+    if (!s) return;
+    sp.set(k, s);
+  });
+  return sp.toString();
+}
+
 export const hotelService = {
-  searchDestination(q: string) {
-    return apiFetch<any>(
-      `/hotel/search-destination?q=${encodeURIComponent(q)}`,
+  /**
+   * BE: GET /hotel/search-destination?query=...
+   */
+  async searchDestination(query: string) {
+    const res = await apiFetch<BaseJsonResponse<any>>(
+      `/hotel/search-destination?${qs({ query: query.trim() })}`,
       { method: "GET" },
       { auth: false }
     );
+    return unwrap<any>(res, "Get Destination Error");
   },
 
-  search(params: Record<string, string | number | boolean>) {
-    const qs = new URLSearchParams(
-      Object.entries(params).map(([k, v]) => [k, String(v)])
-    );
-    return apiFetch<any>(`/hotel/search?${qs.toString()}`, { method: "GET" }, { auth: false });
-  },
-
-  searchByCoordinate(lat: number, lng: number) {
-    return apiFetch<any>(
-      `/hotel/search-by-coordinate?lat=${lat}&lng=${lng}`,
+  /**
+   * BE: GET /hotel/search
+   * Required: destination, arrivalDate, departureDate
+   * Optional: roomQty, adults, childrenAge, pageNumber, priceMin, priceMax, languagecode, currencyCode
+   */
+  async search(params: {
+    destination: string;
+    arrivalDate: string;
+    departureDate: string;
+    roomQty?: string;
+    adults?: string;
+    childrenAge?: string;
+    pageNumber?: string;
+    priceMin?: string;
+    priceMax?: string;
+    languagecode?: string;
+    currencyCode?: string;
+  }) {
+    const res = await apiFetch<BaseJsonResponse<any>>(
+      `/hotel/search?${qs(params)}`,
       { method: "GET" },
       { auth: false }
     );
+    return unwrap<any>(res, "Get hotels error");
   },
 
-  link(id: string) {
-    return apiFetch<any>(`/hotel/link?id=${encodeURIComponent(id)}`, { method: "GET" }, { auth: false });
+  /**
+   * BE: GET /hotel/search-by-coordinate
+   * Required: latitude, longitude, arrivalDate, departureDate
+   */
+  async searchByCoordinate(params: {
+    latitude: string;
+    longitude: string;
+    arrivalDate: string;
+    departureDate: string;
+    roomQty?: string;
+    radius?: string;
+    adults?: string;
+    childrenAge?: string;
+    priceMin?: string;
+    priceMax?: string;
+    pageNumber?: string;
+    languagecode?: string;
+    currencyCode?: string;
+  }) {
+    const res = await apiFetch<BaseJsonResponse<any>>(
+      `/hotel/search-by-coordinate?${qs(params)}`,
+      { method: "GET" },
+      { auth: false }
+    );
+    return unwrap<any>(res, "Get hotels error");
+  },
+
+  /**
+   * BE: GET /hotel/link
+   * Required: hotelId, arrivalDate, departureDate
+   */
+  async link(params: {
+    hotelId: string;
+    arrivalDate: string;
+    departureDate: string;
+    adults?: string;
+    childrenAge?: string;
+    languagecode?: string;
+    currencyCode?: string;
+  }) {
+    const res = await apiFetch<BaseJsonResponse<any>>(
+      `/hotel/link?${qs(params)}`,
+      { method: "GET" },
+      { auth: false }
+    );
+    return unwrap<any>(res, "Get hotels error");
   },
 };

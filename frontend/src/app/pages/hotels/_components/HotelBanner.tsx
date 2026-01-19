@@ -79,23 +79,21 @@ export default function HotelBanner() {
     const adults = Number(adultsStr.replace("adults", "")) || 2;
     const rooms = Number(roomsStr.replace("room", "")) || 1;
 
-    // query params đưa sang trang results
+    // query params đưa sang trang hotel-results (match BE)
     const params = new URLSearchParams();
-    params.set("q", keyword);
-    if (checkIn) params.set("checkIn", checkIn);
-    if (checkOut) params.set("checkOut", checkOut);
+    params.set("destination", keyword);
+    if (checkIn) params.set("arrivalDate", checkIn);
+    if (checkOut) params.set("departureDate", checkOut);
     params.set("adults", String(adults));
-    params.set("rooms", String(rooms));
+    params.set("roomQty", String(rooms));
 
-    // nếu backend cần id/lat/lng thì set thêm
-    if (pickedRef.current?.id)
-      params.set("destId", String(pickedRef.current.id));
+    // Nếu có tọa độ từ gợi ý, gắn vào để dùng /hotel/search-by-coordinate
     if (pickedRef.current?.lat && pickedRef.current?.lng) {
-      params.set("lat", String(pickedRef.current.lat));
-      params.set("lng", String(pickedRef.current.lng));
+      params.set("latitude", String(pickedRef.current.lat));
+      params.set("longitude", String(pickedRef.current.lng));
     }
 
-    router.push(`/pages/hotels/result?${params.toString()}`);
+    router.push(`/pages/hotel-results?${params.toString()}`);
   };
 
   return (
