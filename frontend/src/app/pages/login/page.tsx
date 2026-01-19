@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import RegisterModal from "./_components/RegisterModal";
 import { authService } from "@/lib/services/auth";
 
 function SocialBtn({
@@ -30,18 +29,20 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string>("");
 
-  const [registerOpen, setRegisterOpen] = useState(false);
-
   const validEmail = /.+@.+/.test(email);
   const canSubmit = step === "email" ? validEmail : otp.trim().length >= 6;
 
   const timerRef = useRef<number | null>(null);
+
   useEffect(() => {
     return () => {
       if (timerRef.current) window.clearInterval(timerRef.current);
     };
   }, []);
 
+  /**
+   * UI-only resend countdown (prevents spamming OTP requests)
+   */
   const startCountdown = () => {
     setResendIn(30);
     if (timerRef.current) window.clearInterval(timerRef.current);
@@ -57,6 +58,10 @@ export default function LoginPage() {
     }, 1000);
   };
 
+  /**
+   * Store minimal user info for UI header display.
+   * (Tokens are stored via tokenStore inside authService)
+   */
   const saveUserForHeader = (emailValue: string, displayName?: string) => {
     const name = displayName || emailValue.split("@")[0] || emailValue;
     localStorage.setItem(
@@ -65,13 +70,15 @@ export default function LoginPage() {
     );
   };
 
-  // 1) gửi OTP login
+  /**
+   * Step 1: request OTP
+   * Backend: POST /auth/otp-login/{email}
+   */
   const handleSendOtp = async () => {
     setErr("");
     setLoading(true);
     try {
-      // tuỳ backend: có thể cần { email } hoặc { email, type: "LOGIN" }
-      await authService.otpRegister({ email, type: "LOGIN" });
+      await authService.otpLoginSend(email);
       setStep("otp");
       startCountdown();
     } catch (e: any) {
@@ -81,18 +88,16 @@ export default function LoginPage() {
     }
   };
 
-  // 2) verify OTP -> nhận token
+  /**
+   * Step 2: verify OTP -> login -> persist tokens
+   * Backend: POST /auth/otp-login/verify
+   */
   const handleVerifyOtp = async () => {
     setErr("");
     setLoading(true);
     try {
-      const data = await authService.otpVerify({ email, otp, type: "LOGIN" });
+      const data = await authService.otpLoginVerify({ email, otp });
 
-      // Nếu backend trả token ở đây thì bạn đã setTokens trong authService chưa?
-      // Ở authService hiện tại bạn setTokens chỉ trong login(). Với OTP verify thì nên setTokens ở đó.
-      // Nếu backend trả token trong otpVerify, hãy setTokens tại authService.otpVerify (mình note ở dưới).
-
-      // Lưu user để Header hiện
       const displayName = data?.user?.displayName || data?.user?.name;
       saveUserForHeader(email, displayName);
 
@@ -108,11 +113,8 @@ export default function LoginPage() {
     e.preventDefault();
     if (!canSubmit || loading) return;
 
-    if (step === "email") {
-      await handleSendOtp();
-    } else {
-      await handleVerifyOtp();
-    }
+    if (step === "email") await handleSendOtp();
+    else await handleVerifyOtp();
   };
 
   const resendOTP = async () => {
@@ -165,20 +167,19 @@ export default function LoginPage() {
             {/* RIGHT */}
             <div className="p-5 sm:p-8 md:p-10">
               <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-                Đăng nhập hoặc tạo tài khoản
+                Đăng nhập
               </h1>
               <p className="mt-1 text-slate-600">
-                Chỉ cần email — chúng tôi sẽ gửi mã OTP để xác thực nhanh.
+                Chỉ cần email — hệ thống sẽ gửi mã OTP để xác thực nhanh.
               </p>
 
-              {/* Error */}
               {err && (
                 <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                   {err}
                 </div>
               )}
 
-              {/* Social */}
+              {/* Social demo */}
               <div className="mt-6 flex gap-3">
                 <SocialBtn onClick={() => alert("Google login (demo)")}>
                   <svg viewBox="0 0 24 24" className="h-5 w-5">
@@ -289,17 +290,6 @@ export default function LoginPage() {
                 )}
               </form>
 
-              <p className="mt-4 text-sm text-slate-600">
-                Chưa có tài khoản?{" "}
-                <button
-                  type="button"
-                  onClick={() => setRegisterOpen(true)}
-                  className="text-[#0891b2] hover:underline font-medium"
-                >
-                  Tạo tài khoản
-                </button>
-              </p>
-
               <p className="mt-6 text-xs text-slate-500">
                 Khi tiếp tục, bạn đồng ý với{" "}
                 <a className="underline" href="#">
@@ -315,23 +305,6 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-
-      <RegisterModal
-        open={registerOpen}
-        defaultEmail={email}
-        onClose={() => setRegisterOpen(false)}
-        onSuccess={(displayName) => {
-          // register thành công -> về home
-          // user/token đã lưu trong modal
-          setRegisterOpen(false);
-          // đảm bảo header có tên
-          localStorage.setItem(
-            "vivuplan_user",
-            JSON.stringify({ displayName, email })
-          );
-          window.location.href = "/";
-        }}
-      />
     </main>
   );
 }
