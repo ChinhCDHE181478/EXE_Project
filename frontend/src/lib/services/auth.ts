@@ -1,49 +1,124 @@
 import { apiFetch, tokenStore } from "../apiClient";
 
+/**
+ * Standard API envelope used by backend
+ * Example:
+ * {
+ *   status: "SUCCESS",
+ *   message: "...",
+ *   result: { ... }
+ * }
+ */
+type BaseJsonResponse<T = any> = {
+  status: string | number;
+  message?: string;
+  result?: T;
+};
+
+/**
+ * Login payload returned in BaseJsonResponse.result
+ * from POST /auth/otp-login/verify
+ */
+type LoginResponse = {
+  accessToken: string;
+  refreshToken: string;
+  user?: any;
+};
+
 export const authService = {
+  /**
+   * Legacy username/password login (optional - keep if still used somewhere else)
+   */
   async login(body: { email: string; password: string }) {
     const data = await apiFetch<{ accessToken: string; refreshToken: string }>(
       "/auth/login",
       { method: "POST", body: JSON.stringify(body) },
       { auth: false }
     );
+
     tokenStore.setTokens(data.accessToken, data.refreshToken);
     return data;
   },
 
-  async logout() {
-    // nếu backend yêu cầu token thì giữ auth:true (mặc định)
-    await apiFetch<void>("/auth/logout", { method: "POST" });
-    tokenStore.clearTokens();
-  },
+  /**
+   * Request OTP for login
+   * Backend: POST /auth/otp-login/{email}
+   */
+  async otpLoginSend(email: string) {
+    const safeEmail = encodeURIComponent(email.trim());
 
-  async verify() {
-    return apiFetch<any>("/auth/verify", { method: "POST" });
-  },
-
-  async otpRegister(body: any) {
-    return apiFetch<any>(
-      "/auth/otp-register",
-      { method: "POST", body: JSON.stringify(body) },
-      { auth: false }
-    );
-  },
-
-  async otpVerify(body: any) {
-    const data = await apiFetch<{
-      accessToken: string;
-      refreshToken?: string;
-      user?: any;
-    }>(
-      "/auth/otp-verify",
-      { method: "POST", body: JSON.stringify(body) },
+    const res = await apiFetch<BaseJsonResponse>(
+      `/auth/otp-login/${safeEmail}`,
+      { method: "POST" },
       { auth: false }
     );
 
-    // nếu server trả token
-    if (data?.accessToken)
-      tokenStore.setTokens(data.accessToken, data.refreshToken);
+    // Normalize status check (depends on backend status type)
+    if (!res || String(res.status).toUpperCase() !== "SUCCESS") {
+      throw new Error(res?.message || "Unable to send OTP");
+    }
 
+    return res.result;
+  },
+
+  /**
+   * Verify OTP and retrieve tokens
+   * Backend: POST /auth/otp-login/verify
+   */
+  async otpLoginVerify(body: { email: string; otp: string }) {
+    const res = await apiFetch<BaseJsonResponse<LoginResponse>>(
+      "/auth/otp-login/verify",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email: body.email.trim(),
+          otp: body.otp.trim(),
+        }),
+      },
+      { auth: false }
+    );
+
+    if (!res || String(res.status).toUpperCase() !== "SUCCESS") {
+      throw new Error(res?.message || "OTP verification failed");
+    }
+
+    const data = res.result;
+
+    // Tokens are required for authenticated requests
+    if (!data?.accessToken || !data?.refreshToken) {
+      throw new Error("Token payload missing in login response");
+    }
+
+    tokenStore.setTokens(data.accessToken, data.refreshToken);
     return data;
+  },
+
+  /**
+   * Logout
+   * Backend currently expects a LogoutRequest body.
+   * If your backend requires refreshToken, you can extend this later.
+   */
+  async logout() {
+    try {
+      await apiFetch<void>("/auth/logout", { method: "POST" });
+    } finally {
+      tokenStore.clearTokens();
+      // Optionally clear cached user info
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("vivuplan_user");
+      }
+    }
+  },
+
+  /**
+   * Verify token validity
+   * Backend: POST /auth/verify with body { accessToken }
+   */
+  async verify(accessToken: string) {
+    return apiFetch<any>(
+      "/auth/verify",
+      { method: "POST", body: JSON.stringify({ accessToken }) },
+      { auth: false }
+    );
   },
 };

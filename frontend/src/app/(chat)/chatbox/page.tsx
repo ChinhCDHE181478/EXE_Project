@@ -1,14 +1,9 @@
-// src/app/pages/chatbox/page.tsx
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
-/** ========= BG ========= */
-const BG_URL =
-  "https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=2400&auto=format&fit=crop";
-
-/** ========= Types ========= */
+/** ========= Types & Interfaces ========= */
 type Msg = { role: "ai" | "user"; content: string };
 type TabKey = "itinerary" | "flights" | "hotels" | "cars";
 
@@ -19,1022 +14,315 @@ type Thread = {
   messages: Msg[];
 };
 
-const STORAGE_KEY = "vivu_threads_v1";
+type ItineraryResponse = {
+  trip_summary?: any;
+  itinerary?: any[];
+  notes?: string;
+};
 
-/** ========= MOCK DATA ========= */
-const MOCK_ITINERARY = [
-  {
-    day: 1,
-    date: "12/12",
-    city: "Tokyo",
-    items: [
-      {
-        time: "07:30",
-        title: "Bay HAN → HND",
-        note: "VNA 2 kiện 23kg",
-        type: "move",
-      },
-      { time: "12:10", title: "Check-in Shinjuku Granbell", type: "move" },
-      { time: "15:00", title: "Shinjuku Gyoen", type: "sight" },
-      { time: "19:00", title: "Ichiran Ramen", type: "meal" },
-    ],
-  },
-  {
-    day: 2,
-    date: "13/12",
-    city: "Tokyo",
-    items: [
-      { time: "09:00", title: "Asakusa – Sensoji", type: "sight" },
-      { time: "12:00", title: "Sushi Zanmai", type: "meal" },
-      { time: "15:00", title: "Shibuya Sky", type: "sight" },
-      { time: "20:00", title: "TeamLab Planets", type: "sight" },
-    ],
-  },
-  {
-    day: 3,
-    date: "14/12",
-    city: "Hakone",
-    items: [
-      { time: "08:00", title: "JR Shinjuku → Odawara", type: "move" },
-      { time: "11:00", title: "Hakone Ropeway", type: "sight" },
-      { time: "18:30", title: "Ryokan dinner", type: "meal" },
-    ],
-  },
-  {
-    day: 4,
-    date: "15/12",
-    city: "Tokyo",
-    items: [
-      { time: "10:00", title: "Ueno Park & Zoo", type: "sight" },
-      { time: "13:00", title: "Gyukatsu Motomura", type: "meal" },
-      { time: "16:00", title: "Akihabara shopping", type: "sight" },
-    ],
-  },
-];
+/** ========= Config & Constants ========= */
+const API_BASE = (process.env.NEXT_PUBLIC_CHAT_AGENT_URL || "").replace(/\/$/, "");
+const LS_USER_KEY = "vivu_user_id_v1";
+const ITI_PAGE_SIZE = 2; // Đã khai báo để tránh lỗi ReferenceError
 
-const MOCK_FLIGHTS = Array.from({ length: 13 }).map((_, i) => ({
-  id: `F${i + 1}`,
-  from: ["HAN", "SGN", "DAD"][i % 3],
-  to: ["HND", "NRT", "KIX"][i % 3],
-  depart: `0${(i % 9) + 8}:30 • ${10 + (i % 9)}/12`,
-  arrive: `${(i % 12) + 12}:10 • ${10 + (i % 9)}/12`,
-  airline: ["Vietnam Airlines", "JAL", "ANA"][i % 3],
-  price: 3500000 + i * 120000,
-  stops: i % 2,
-}));
-
-const MOCK_HOTELS = Array.from({ length: 12 }).map((_, i) => ({
-  id: `H${i + 1}`,
-  name:
-    ["Shinjuku Granbell", "Hotel The Knot", "Park Hyatt"][i % 3] + ` #${i + 1}`,
-  star: (i % 3) + 3,
-  location: ["Shinjuku", "Shibuya", "Ueno"][i % 3] + ", Tokyo",
-  price: 1200000 + i * 90000,
-  img: "https://images.unsplash.com/photo-1551776235-dde6d4829808?q=80&w=1200&auto=format&fit=crop",
-}));
-
-const MOCK_CARS = Array.from({ length: 11 }).map((_, i) => ({
-  id: `C${i + 1}`,
-  name: ["Mazda 3", "Toyota Sienta", "Suzuki Swift"][i % 3],
-  supplier: ["Nissan Rent a Car", "Klook", "Trip.com"][i % 3],
-  auto: i % 2 === 0,
-  seats: [5, 7, 5][i % 3],
-  price: 1500000 + i * 100000,
-  img: "https://images.unsplash.com/photo-1606666385590-8a8631987e51?q=80&w=1200&auto=format&fit=crop",
-}));
-
-/** ========= UI helpers ========= */
-function Badge({
-  children,
-  className = "",
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
+/** ========= UI Components Chuyên Nghiệp ========= */
+function Logo() {
   return (
-    <span
-      className={`inline-flex items-center rounded-md px-2 py-[2px] text-[11px] ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
-
-function SectionCard({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl bg-white/90 ring-1 ring-black/5 shadow">
-      {children}
-    </div>
-  );
-}
-
-function IconTrash({ className = "" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M9 3h6m-8 4h10m-9 0 1 15h6l1-15M10 10v8m4-8v8"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconPlus({ className = "" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M12 5v14M5 12h14"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconCollapse({ className = "" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M9 6h10M5 12h14M9 18h10"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconMenu({ className = "" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M6 7h12M6 12h12M6 17h12"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-/** ========= Cards ========= */
-function FlightCard({ f }: { f: (typeof MOCK_FLIGHTS)[number] }) {
-  return (
-    <div className="rounded-xl border bg-white shadow-sm ring-1 ring-black/5 overflow-hidden">
-      <div className="p-4 flex items-start justify-between gap-3">
-        <div>
-          <div className="text-sm text-slate-600">{f.airline}</div>
-          <div className="text-lg font-semibold text-slate-900">
-            {f.from} → {f.to}
-          </div>
-          <div className="text-sm text-slate-700 mt-1">
-            {f.depart} · đến {f.arrive}
-          </div>
-          <div className="mt-2">
-            <Badge
-              className={
-                f.stops === 0
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-amber-100 text-amber-700"
-              }
-            >
-              {f.stops === 0 ? "Bay thẳng" : `${f.stops} điểm dừng`}
-            </Badge>
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="text-xs text-slate-500">từ</div>
-          <div className="text-2xl font-extrabold text-slate-900">
-            {f.price.toLocaleString("vi-VN")} đ
-          </div>
-          <button className="mt-3 h-10 rounded-lg bg-[#0891b2] px-4 text-white text-sm font-medium hover:brightness-110">
-            Chọn vé
-          </button>
-        </div>
+    <Link href="/" className="flex items-center gap-2 group">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-600 text-white shadow-lg shadow-cyan-200 transition-all group-hover:scale-110">
+        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
+          <path d="M2 12l7 2 4 8 2-6 6 2 1-2-6-4 3-8-2-1-6 7-9 2z" />
+        </svg>
       </div>
-    </div>
+      <span className="text-2xl font-black tracking-tighter text-slate-800">VivuPlan</span>
+    </Link>
   );
 }
 
-function HotelCard({ h }: { h: (typeof MOCK_HOTELS)[number] }) {
-  return (
-    <div className="rounded-xl border bg-white shadow-sm ring-1 ring-black/5 overflow-hidden">
-      <div className="aspect-[16/9] bg-slate-100">
-        <img src={h.img} alt={h.name} className="h-full w-full object-cover" />
-      </div>
-      <div className="p-4 flex items-start justify-between gap-3">
-        <div>
-          <div className="text-lg font-semibold text-slate-900">{h.name}</div>
-          <div className="text-sm text-slate-600">{h.location}</div>
-          <div className="mt-1 text-amber-500 text-sm">{"★".repeat(h.star)}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-xs text-slate-500">mỗi đêm</div>
-          <div className="text-2xl font-extrabold text-slate-900">
-            {h.price.toLocaleString("vi-VN")} đ
-          </div>
-          <button className="mt-3 h-10 rounded-lg bg-[#0891b2] px-4 text-white text-sm font-medium hover:brightness-110">
-            Xem phòng
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+function GlassCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`rounded-[2.5rem] bg-white/80 backdrop-blur-2xl border border-white shadow-[0_8px_40px_rgb(0,0,0,0.04)] ${className}`}>{children}</div>;
 }
 
-function CarCard({ c }: { c: (typeof MOCK_CARS)[number] }) {
-  return (
-    <div className="rounded-xl border bg-white shadow-sm ring-1 ring-black/5 overflow-hidden">
-      <div className="aspect-[16/9] bg-slate-100">
-        <img src={c.img} alt={c.name} className="h-full w-full object-cover" />
-      </div>
-      <div className="p-4 flex items-start justify-between gap-3">
-        <div>
-          <div className="text-lg font-semibold text-slate-900">{c.name}</div>
-          <div className="text-sm text-slate-600">{c.supplier}</div>
-          <div className="mt-2 flex items-center gap-2 text-xs text-slate-700">
-            <Badge className="bg-slate-100 text-slate-700">{c.seats} chỗ</Badge>
-            <Badge className="bg-slate-100 text-slate-700">
-              {c.auto ? "Tự động" : "Số sàn"}
-            </Badge>
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="text-xs text-slate-500">tổng cộng</div>
-          <div className="text-2xl font-extrabold text-slate-900">
-            {c.price.toLocaleString("vi-VN")} đ
-          </div>
-          <button className="mt-3 h-10 rounded-lg bg-[#0891b2] px-4 text-white text-sm font-medium hover:brightness-110">
-            Thuê xe
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+const safeJsonParse = (s: string) => { try { return JSON.parse(s); } catch { return null; } };
+const newSessionIdClient = () => `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 
-/** ========= Pagination ========= */
-function Pager({
-  total,
-  page,
-  onChange,
-  pageSize = 5,
-  maxPages = 5,
-}: {
-  total: number;
-  page: number;
-  onChange: (n: number) => void;
-  pageSize?: number;
-  maxPages?: number;
-}) {
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const clamped = Math.min(totalPages, Math.max(1, page));
-  const start = Math.max(1, clamped - Math.floor(maxPages / 2));
-  const end = Math.min(totalPages, start + maxPages - 1);
-  const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
-
-  return (
-    <div className="mt-4 flex items-center justify-center gap-2">
-      <button
-        className="rounded-md border px-3 py-2 text-sm disabled:opacity-40"
-        disabled={clamped === 1}
-        onClick={() => onChange(clamped - 1)}
-      >
-        ‹
-      </button>
-
-      {pages[0] > 1 && (
-        <>
-          <button
-            className="h-9 w-9 rounded-md border text-sm"
-            onClick={() => onChange(1)}
-          >
-            1
-          </button>
-          <span className="px-1 text-slate-500">…</span>
-        </>
-      )}
-
-      {pages.map((n) => (
-        <button
-          key={n}
-          onClick={() => onChange(n)}
-          className={`h-9 w-9 rounded-md border text-sm ${
-            n === clamped ? "bg-[#0891b2] text-white border-[#0891b2]" : "bg-white"
-          }`}
-        >
-          {n}
-        </button>
-      ))}
-
-      {pages[pages.length - 1] < totalPages && (
-        <>
-          <span className="px-1 text-slate-500">…</span>
-          <button
-            className="h-9 w-9 rounded-md border text-sm"
-            onClick={() => onChange(totalPages)}
-          >
-            {totalPages}
-          </button>
-        </>
-      )}
-
-      <button
-        className="rounded-md border px-3 py-2 text-sm disabled:opacity-40"
-        disabled={clamped === totalPages}
-        onClick={() => onChange(clamped + 1)}
-      >
-        ›
-      </button>
-    </div>
-  );
-}
-
-/** ========= Helpers ========= */
-const now = () => Date.now();
-const uid = () => Math.random().toString(36).slice(2, 10);
-
-function guessTitle(msgs: Msg[]) {
-  const firstUser = msgs.find((m) => m.role === "user")?.content?.trim();
-  if (!firstUser) return "Cuộc trò chuyện mới";
-  return firstUser.length > 28 ? firstUser.slice(0, 28) + "…" : firstUser;
-}
-
-function defaultThread(): Thread {
-  const init: Msg[] = [
-    {
-      role: "ai",
-      content:
-        "Xin chào! Nhập điểm đến & ngân sách, mình sẽ gợi ý lịch trình, vé, khách sạn và xe nhé.",
-    },
-  ];
-  return {
-    id: uid(),
-    title: "Cuộc trò chuyện mới",
-    updatedAt: now(),
-    messages: init,
-  };
-}
-
-/** ========= Main Page ========= */
 export default function ChatboxPage() {
-  // create one initial thread (avoid closure bug)
-  const initialThread = useMemo(() => defaultThread(), []);
-  const [threads, setThreads] = useState<Thread[]>(() => [initialThread]);
-  const [activeId, setActiveId] = useState<string>(() => initialThread.id);
-
-  const active = useMemo(
-    () => threads.find((t) => t.id === activeId) ?? threads[0],
-    [threads, activeId]
-  );
-
-  const sortedThreads = useMemo(
-    () => threads.slice().sort((a, b) => b.updatedAt - a.updatedAt),
-    [threads]
-  );
-
-  // chat input
-  const [text, setText] = useState("");
-  const listRef = useRef<HTMLDivElement | null>(null);
-
-  // results pane
-  const [resultsOpen, setResultsOpen] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const [tab, setTab] = useState<TabKey>("itinerary");
-
-  // mobile threads drawer
-  const [threadsOpen, setThreadsOpen] = useState(false);
-
-  // lock scroll when drawer open
-  useEffect(() => {
-    if (!threadsOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [threadsOpen]);
-
-  // ESC to close drawer
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setThreadsOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
-
-  // Pagination (lists)
-  const [page, setPage] = useState(1);
-  const PAGE_SIZE = 5;
-
-  // Pagination (itinerary)
-  const ITI_PAGE_SIZE = 2;
+  const [resultsOpen, setResultsOpen] = useState(true);
+  const [isFormOpen, setIsFormOpen] = useState(true); // Tắt/mở Prompt
+  
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [activeId, setActiveId] = useState<string>("");
+  const [text, setText] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [itineraryCache, setItineraryCache] = useState<Record<string, ItineraryResponse>>({});
   const [itiPage, setItiPage] = useState(1);
+  
+  const userIdRef = useRef<string>("1");
+  const abortRef = useRef<AbortController | null>(null);
 
-  const itiSlice = useMemo(
-    () =>
-      MOCK_ITINERARY.slice(
-        (itiPage - 1) * ITI_PAGE_SIZE,
-        itiPage * ITI_PAGE_SIZE
-      ),
-    [itiPage]
-  );
+  // Form cấu hình đầy đủ
+  const [config, setConfig] = useState({
+    from: "Hà Nội",
+    to: "Đà Nẵng",
+    startDate: new Date().toISOString().split('T')[0],
+    guests: "2",
+    days: "3",
+    budget: "5.000.000",
+    transport: "Máy bay", 
+    style: "Khám phá & Ẩm thực",
+    extra: "Khách sạn 4 sao, quán ăn địa phương trên 4 sao Google"
+  });
 
-  const rightData = useMemo(() => {
-    if (tab === "flights") return MOCK_FLIGHTS;
-    if (tab === "hotels") return MOCK_HOTELS;
-    if (tab === "cars") return MOCK_CARS;
-    return [];
-  }, [tab]);
+  const activeThread = useMemo(() => threads.find((t) => t.id === activeId) || null, [threads, activeId]);
 
-  const pageSlice = rightData.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  /** ========= Persist threads ========= */
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Thread[];
-      if (Array.isArray(parsed) && parsed.length) {
-        setThreads(parsed);
-        setActiveId(parsed[0].id);
-      }
-    } catch {
-      // ignore
+    setMounted(true);
+    if (typeof window !== "undefined") {
+      const existing = localStorage.getItem(LS_USER_KEY);
+      userIdRef.current = existing || "1";
     }
   }, []);
 
+  // 1. Tải danh sách lịch sử
   useEffect(() => {
+    if (!mounted || !API_BASE) return;
+    const loadHistory = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/conversation/history/${userIdRef.current}?page=1&page_size=20`);
+        const data = await res.json();
+        const items = data?.data || [];
+        const mapped = items.map((it: any) => ({
+          id: String(it.session_id || ""),
+          title: String(it.title || "Chuyến đi"),
+          updatedAt: Date.parse(it.created_at) || Date.now(),
+          messages: [],
+        }));
+        if (mapped.length) { setThreads(mapped); setActiveId(mapped[0].id); }
+      } catch (e) { console.error(e); }
+    };
+    loadHistory();
+  }, [mounted]);
+
+  // 2. Tải tin nhắn chi tiết khi chuyển Thread (Fix lỗi mất chat)
+  useEffect(() => {
+    if (!activeId || !API_BASE || !mounted) return;
+    const loadMessages = async () => {
+      const current = threads.find(t => t.id === activeId);
+      if (current && current.messages.length > 0) return;
+      try {
+        const res = await fetch(`${API_BASE}/conversation/${activeId}`);
+        const data = await res.json();
+        const msgs = (Array.isArray(data) ? data : data?.messages || []).map((m: any) => ({
+          role: m.role === "user" ? "user" : "ai",
+          content: m.content || m.text || ""
+        }));
+        setThreads(prev => prev.map(t => t.id === activeId ? { ...t, messages: msgs } : t));
+      } catch (e) { console.error(e); }
+    };
+    loadMessages();
+  }, [activeId, mounted]);
+
+  const sendText = async (customContent?: string) => {
+    const content = (customContent || text).trim();
+    if (!content || isStreaming || !activeId) return;
+
+    abortRef.current = new AbortController();
+    setThreads(prev => prev.map(t => t.id === activeId ? { ...t, messages: [...t.messages, { role: "user", content }, { role: "ai", content: "" }] } : t));
+    setText("");
+    setIsStreaming(true);
+
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(threads));
-    } catch {
-      // ignore
-    }
-  }, [threads]);
-
-  /** ========= Scroll to bottom ========= */
-  useEffect(() => {
-    listRef.current?.scrollTo({
-      top: listRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [active?.messages?.length]);
-
-  /** ========= Reset pagination when tab changes ========= */
-  useEffect(() => {
-    if (tab === "itinerary") setItiPage(1);
-    else setPage(1);
-  }, [tab]);
-
-  /** ========= Receive draft from previous page ========= */
-  useEffect(() => {
-    const draft = sessionStorage.getItem("vivu_draft");
-    if (!draft) return;
-    sessionStorage.removeItem("vivu_draft");
-    sendText(draft);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /** ========= Thread actions ========= */
-  const createNewChat = () => {
-    const t = defaultThread();
-    setThreads((prev) => [t, ...prev]);
-    setActiveId(t.id);
-    setText("");
-    setTab("itinerary");
-    setItiPage(1);
-  };
-
-  const deleteChat = (id: string) => {
-    setThreads((prev) => {
-      const next = prev.filter((t) => t.id !== id);
-      if (!next.length) {
-        const t = defaultThread();
-        setActiveId(t.id);
-        return [t];
-      }
-      if (activeId === id) setActiveId(next[0].id);
-      return next;
-    });
-  };
-
-  /** ========= Send logic ========= */
-  const updateThreadById = (id: string, updater: (t: Thread) => Thread) => {
-    setThreads((prev) => prev.map((t) => (t.id === id ? updater(t) : t)));
-  };
-
-  const sendText = (raw: string) => {
-    const t = raw.trim();
-    if (!t) return;
-
-    const currentId = activeId;
-
-    const userMsg: Msg = { role: "user", content: t };
-
-    updateThreadById(currentId, (thr) => {
-      const nextMsgs: Msg[] = [...thr.messages, userMsg];
-      return {
-        ...thr,
-        messages: nextMsgs,
-        title: guessTitle(nextMsgs),
-        updatedAt: now(),
-      };
-    });
-
-    setText("");
-
-    // show results
-    setResultsOpen(true);
-    setTab("itinerary");
-    setItiPage(1);
-
-    setTimeout(() => {
-      const aiMsg: Msg = {
-        role: "ai",
-        content:
-          "Mình đã dựng lịch trình nháp bên phải. Bạn có thể chuyển sang Flights/Hotels/Cars để xem gợi ý chi tiết.",
-      };
-
-      updateThreadById(currentId, (thr) => {
-        const nextMsgs: Msg[] = [...thr.messages, aiMsg];
-        return {
-          ...thr,
-          messages: nextMsgs,
-          title: guessTitle(nextMsgs),
-          updatedAt: now(),
-        };
+      const res = await fetch(`${API_BASE}/conversation/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: activeId, user_id: userIdRef.current, content }),
+        signal: abortRef.current.signal,
       });
-    }, 400);
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+      let lastAI = "";
+
+      while (true) {
+        const { done, value } = await reader?.read() || { done: true, value: undefined };
+        if (done) break;
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+        for (const line of lines) {
+          const payload = line.replace(/^data: /, "").trim();
+          if (!payload || payload === "[DONE]") continue;
+          const obj = safeJsonParse(payload);
+          if (obj?.type === "data-itinerary") {
+            setItineraryCache(prev => ({ ...prev, [activeId]: obj.data }));
+            setIsFormOpen(false); // Tự đóng form khi có kết quả
+          }
+          const delta = obj?.delta || obj?.content || (typeof obj === 'string' ? obj : "");
+          if (delta) {
+            lastAI += delta;
+            setThreads(p => p.map(t => t.id === activeId ? { ...t, messages: t.messages.map((m, i) => i === t.messages.length - 1 ? { ...m, content: lastAI } : m) } : t));
+          }
+        }
+      }
+    } catch (e) {} finally { setIsStreaming(false); }
   };
 
-  const send = () => sendText(text);
+  /** MASTER PROMPT TẠO SỰ KHÁC BIỆT */
+  const handleDesign = () => {
+    const masterPrompt = `Lập lịch trình ĐẲNG CẤP: Khởi hành từ ${config.from} đi ${config.to}, ngày ${config.startDate}, ${config.days} ngày cho ${config.guests} người. Ngân sách ${config.budget}. Di chuyển bằng ${config.transport}. Phong cách: ${config.style}. YÊU CẦU: Khách sạn và quán ăn PHẢI có đánh giá Rating (Google/TripAdvisor) kèm link tham khảo. CHỈ chọn địa điểm trên 4.0 sao.`;
+    sendText(masterPrompt);
+  };
+
+  const currentItinerary = itineraryCache[activeId];
+  const itineraryBlocks = useMemo(() => {
+    const api = currentItinerary?.itinerary;
+    if (!api) return [];
+    return api.map((d: any, idx: number) => ({
+      day: idx + 1,
+      date: d.date_ || d.date || "",
+      city: d.location || d.city || "",
+      items: [{ time: "Sáng", title: d.morning }, { time: "Chiều", title: d.afternoon }, { time: "Tối", title: d.evening }].filter(x => x.title)
+    }));
+  }, [currentItinerary, activeId]);
+
+  if (!mounted) return null;
 
   return (
-    <div className="relative min-h-screen">
-      {/* Background */}
-      {BG_URL && (
-        <>
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url("${BG_URL}")` }}
-            aria-hidden
-          />
-          <div className="absolute inset-0 bg-black/25" aria-hidden />
-        </>
-      )}
+    <div className="min-h-screen bg-[#f1f5f9] font-sans">
+      <header className="sticky top-0 z-50 h-20 bg-white/80 backdrop-blur-md border-b flex items-center justify-between px-8">
+        <div className="flex items-center gap-8">
+          <Link href="/" className="flex items-center gap-2 text-slate-500 font-bold hover:text-cyan-600 transition-colors">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M15 19l-7-7 7-7" /></svg>
+            Quay lại
+          </Link>
+          <Logo />
+        </div>
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl">
+          {["LỊCH TRÌNH", "FLIGHTS", "HOTELS", "CARS"].map(t => (
+            <button key={t} className={`px-4 py-2 rounded-lg text-[10px] font-black tracking-widest ${t === "LỊCH TRÌNH" ? "bg-white text-cyan-600 shadow-sm" : "text-slate-400"}`}>{t}</button>
+          ))}
+        </div>
+        <button onClick={() => setResultsOpen(!resultsOpen)} className="px-5 py-2 bg-white border rounded-xl text-[10px] font-black text-slate-500 uppercase hover:bg-slate-50 transition-colors">
+          {resultsOpen ? "THU GỌN" : "MỞ RỘNG"}
+        </button>
+      </header>
 
-      <div className="relative z-10 min-h-screen">
-        <div className="mx-auto max-w-[1400px] px-4 py-6">
-          {/* Top badge row */}
-          <div className="mb-4 flex items-center justify-between gap-3">
-            {/* ✅ logo click -> home */}
-            <Link
-              href="/"
-              className="inline-flex items-center gap-3 rounded-xl bg-white/95 px-3.5 py-2.5 ring-1 ring-black/5 shadow hover:brightness-[0.98]"
-              title="Về trang chủ"
-            >
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#0891b2] text-white font-bold">
-                V
-              </span>
-              <div className="leading-tight">
-                <div className="font-semibold text-slate-900">VivuPlan</div>
-                <div className="text-xs text-slate-600">AI Trip Assistant</div>
-              </div>
-            </Link>
-
-            <div className="flex items-center gap-2">
-              {/* ✅ Mobile: open threads */}
-              <button
-                type="button"
-                onClick={() => setThreadsOpen(true)}
-                className="lg:hidden inline-flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-sm ring-1 ring-black/10 hover:bg-white"
-                title="Mở danh sách chat"
-              >
-                <IconMenu className="h-5 w-5 text-slate-700" />
-                Chats
-              </button>
-
-              {/* Toggle results */}
-              <button
-                type="button"
-                onClick={() => setResultsOpen((v) => !v)}
-                className="inline-flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-sm ring-1 ring-black/10 hover:bg-white"
-                title={resultsOpen ? "Thu gọn kết quả" : "Mở kết quả"}
-              >
-                <IconCollapse className="h-5 w-5 text-slate-700" />
-                {resultsOpen ? "Thu kết quả" : "Mở kết quả"}
-              </button>
+      <main className="mx-auto max-w-[1600px] px-8 py-8 grid grid-cols-12 gap-6 h-[calc(100vh-80px)]">
+        {/* Sidebar History */}
+        <div className="col-span-3">
+          <GlassCard className="p-4 h-full flex flex-col">
+            <button onClick={() => { const id = newSessionIdClient(); setThreads([{ id, title: "Chuyến đi mới", updatedAt: Date.now(), messages: [] }, ...threads]); setActiveId(id); setIsFormOpen(true); }} className="w-full bg-cyan-600 py-4 rounded-2xl text-[11px] font-black text-white shadow-lg shadow-cyan-100 hover:bg-cyan-700 transition-all">+ CHUYẾN ĐI MỚI</button>
+            <div className="flex-1 overflow-y-auto mt-4 space-y-2 pr-2 custom-scrollbar">
+              {threads.map(t => (
+                <button key={t.id} onClick={() => setActiveId(t.id)} className={`w-full text-left p-4 rounded-2xl transition-all ${t.id === activeId ? "bg-white shadow-md ring-1 ring-black/5" : "opacity-60 hover:opacity-100"}`}>
+                  <div className="text-sm font-bold text-slate-700 truncate">{t.title}</div>
+                  <div className="text-[10px] text-slate-400 mt-1 uppercase">ID: {t.id.slice(-5)}</div>
+                </button>
+              ))}
             </div>
-          </div>
+          </GlassCard>
+        </div>
 
-          <div className="flex gap-4">
-            {/* Sidebar threads (desktop) */}
-            <aside className="hidden lg:block w-[300px] shrink-0">
-              <SectionCard>
-                <div className="p-3 border-b bg-slate-50 flex items-center justify-between">
-                  <div className="font-semibold text-slate-900">Chats</div>
-                  <button
-                    type="button"
-                    onClick={createNewChat}
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#0891b2] px-3 py-2 text-sm text-white hover:brightness-110"
-                  >
-                    <IconPlus className="h-5 w-5" />
-                    New
-                  </button>
-                </div>
-
-                <div className="max-h-[72vh] overflow-auto p-2">
-                  <div className="space-y-1">
-                    {sortedThreads.map((t) => {
-                      const isActive = t.id === activeId;
-                      return (
-                        <div
-                          key={t.id}
-                          className={`group flex items-center justify-between gap-2 rounded-xl px-3 py-2 ring-1 ${
-                            isActive
-                              ? "bg-[#0891b2]/10 ring-[#0891b2]/20"
-                              : "bg-white ring-black/5 hover:bg-slate-50"
-                          }`}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setActiveId(t.id)}
-                            className="flex-1 text-left"
-                            title={t.title}
-                          >
-                            <div className="text-sm font-medium text-slate-900 line-clamp-1">
-                              {t.title}
-                            </div>
-                            <div className="text-xs text-slate-500">
-                              {new Date(t.updatedAt).toLocaleString("vi-VN")}
-                            </div>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => deleteChat(t.id)}
-                            className="opacity-0 group-hover:opacity-100 transition rounded-lg p-2 hover:bg-white"
-                            title="Xoá cuộc chat"
-                          >
-                            <IconTrash className="h-5 w-5 text-slate-600" />
-                          </button>
-                        </div>
-                      );
-                    })}
+        {/* Center: Chat Area + Form */}
+        <div className={`${resultsOpen ? "col-span-5" : "col-span-9"} flex flex-col h-full relative overflow-hidden`}>
+          <GlassCard className="flex flex-col h-full overflow-hidden border-none shadow-2xl">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/20">
+              {activeThread?.messages.map((m, i) => (
+                <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] rounded-3xl px-5 py-3 text-sm font-medium ${m.role === "user" ? "bg-cyan-600 text-white" : "bg-white text-slate-700 ring-1 ring-slate-100 shadow-sm"}`}>
+                    {m.content.replace(/\{"type": "data-itinerary".*?\}/g, "")}
                   </div>
                 </div>
-              </SectionCard>
-            </aside>
+              ))}
+              {isStreaming && <div className="text-[10px] font-black text-cyan-500 animate-pulse uppercase tracking-widest ml-2">ĐANG THIẾT KẾ...</div>}
+            </div>
 
-            {/* Main area */}
-            <main className="flex-1">
-              <div
-                className={`grid gap-4 ${
-                  resultsOpen ? "grid-cols-1 lg:grid-cols-12" : "grid-cols-1"
-                }`}
-              >
-                {/* LEFT: chat */}
-                <div className={resultsOpen ? "lg:col-span-5" : ""}>
-                  <div className={!resultsOpen ? "mx-auto max-w-[820px]" : ""}>
-                    <SectionCard>
-                      <div className="flex h-[76vh] min-h-[480px] flex-col overflow-hidden">
-                        <div
-                          ref={listRef}
-                          className="flex-1 overflow-auto p-4 space-y-3"
-                        >
-                          {active.messages.map((m, i) => (
-                            <div
-                              key={i}
-                              className={`flex ${m.role === "user" ? "justify-end" : ""}`}
-                            >
-                              <div
-                                className={`rounded-2xl px-4 py-2.5 leading-relaxed shadow-sm max-w-[85%] ${
-                                  m.role === "user"
-                                    ? "bg-[#0891b2] text-white"
-                                    : "bg-white ring-1 ring-slate-200 text-slate-900"
-                                }`}
-                              >
-                                {m.content}
-                              </div>
-                            </div>
+            {/* FORM PROMPT (Tắt/Mở) */}
+            <div className={`absolute bottom-24 left-6 right-6 transition-all duration-500 ${isFormOpen ? "translate-y-0 opacity-100" : "translate-y-[120%] opacity-0 pointer-events-none"}`}>
+              <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 ring-1 ring-black/5">
+                <div className="flex justify-between mb-4 items-center">
+                  <span className="text-[10px] font-black uppercase text-slate-800 tracking-widest">Cấu hình lịch trình hoàn hảo</span>
+                  <button onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">✕</button>
+                </div>
+                <div className="grid grid-cols-4 gap-3 mb-4">
+                  <InputBox label="Từ" value={config.from} onChange={v => setConfig({...config, from: v})} />
+                  <InputBox label="Đến" value={config.to} onChange={v => setConfig({...config, to: v})} />
+                  <InputBox label="Ngày đi" type="date" value={config.startDate} onChange={v => setConfig({...config, startDate: v})} />
+                  <InputBox label="Ngân sách" value={config.budget} onChange={v => setConfig({...config, budget: v})} />
+                </div>
+                <div className="flex gap-3 items-end">
+                   <div className="flex-1"><label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Yêu cầu & Phương tiện</label><input type="text" value={config.extra} onChange={e => setConfig({...config, extra: e.target.value})} className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold focus:border-cyan-500 outline-none transition-all" /></div>
+                   <div className="flex gap-2"><MiniInput label="Khách" value={config.guests} onChange={v => setConfig({...config, guests: v})} /><MiniInput label="Ngày" value={config.days} onChange={v => setConfig({...config, days: v})} /></div>
+                   <button onClick={handleDesign} disabled={isStreaming} className="h-[40px] px-6 bg-cyan-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-cyan-100 hover:bg-cyan-700 transition-all">THIẾT KẾ</button>
+                </div>
+              </div>
+            </div>
+
+            {/* CHAT INPUT */}
+            <div className="p-4 bg-white border-t flex items-center gap-3">
+              <button onClick={() => setIsFormOpen(!isFormOpen)} className={`h-12 w-12 flex items-center justify-center rounded-2xl transition-all ${isFormOpen ? "bg-cyan-50 text-cyan-600" : "bg-slate-50 text-slate-400 hover:bg-slate-100"}`}>
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4v2" /></svg>
+              </button>
+              <div className="flex-1 relative flex items-center bg-slate-50 rounded-2xl ring-1 ring-slate-200 focus-within:ring-cyan-500 transition-all">
+                <textarea value={text} onChange={e => setText(e.target.value)} placeholder="Hỏi thêm hoặc tinh chỉnh..." className="w-full bg-transparent px-4 py-3 text-sm font-bold outline-none resize-none h-12" onKeyDown={e => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendText())} />
+                <button onClick={() => sendText()} disabled={!text.trim()} className="absolute right-2 h-9 w-9 bg-cyan-600 text-white flex items-center justify-center rounded-xl hover:bg-cyan-700 transition-all"><svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}><path d="M12 5l7 7-7 7M5 12h14" /></svg></button>
+              </div>
+            </div>
+          </GlassCard>
+        </div>
+
+        {/* Results Panel */}
+        {resultsOpen && (
+          <div className="col-span-4 h-full">
+            <GlassCard className="h-full flex flex-col overflow-hidden shadow-2xl">
+              <div className="p-6 border-b flex justify-between items-center bg-white/50"><span className="text-sm font-black uppercase text-slate-800 tracking-widest">Lộ trình chi tiết</span><div className="h-8 w-8 bg-cyan-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">AI</div></div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/10 custom-scrollbar">
+                {itineraryBlocks.length > 0 ? (
+                  <div className="space-y-4">
+                    {itineraryBlocks.slice((itiPage - 1) * ITI_PAGE_SIZE, itiPage * ITI_PAGE_SIZE).map((d: any) => (
+                      <div key={d.day} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+                        <div className="flex justify-between items-center mb-3 pb-2 border-b"><span className="text-[11px] font-black text-slate-800 uppercase tracking-tighter">Ngày {d.day} <span className="text-cyan-500 ml-1">{d.date}</span></span><span className="text-[9px] font-black text-cyan-600 px-2 py-0.5 bg-cyan-50 rounded-lg">{d.city}</span></div>
+                        <div className="space-y-3">
+                          {d.items.map((it:any, idx:number) => (
+                            <div key={idx} className="flex gap-4 text-xs font-medium text-slate-600"><span className="w-12 font-black text-slate-300 italic uppercase">{it.time}</span><span>{it.title}</span></div>
                           ))}
                         </div>
-
-                        <div className="p-3 border-t bg-white/80 backdrop-blur">
-                          <div className="flex items-center gap-2 rounded-xl ring-1 ring-black/10 bg-white">
-                            <input
-                              value={text}
-                              onChange={(e) => setText(e.target.value)}
-                              placeholder="Nhập câu hỏi…"
-                              className="flex-1 rounded-xl bg-transparent px-4 py-3 outline-none"
-                              onKeyDown={(e) => e.key === "Enter" && send()}
-                            />
-                            <button
-                              type="button"
-                              onClick={send}
-                              className="m-1 mr-2 h-10 shrink-0 rounded-lg bg-[#0891b2] px-4 text-white text-sm font-medium hover:brightness-110"
-                            >
-                              Gửi
-                            </button>
-                          </div>
-                        </div>
                       </div>
-                    </SectionCard>
+                    ))}
+                    <div className="flex justify-between items-center px-2 pt-4">
+                      <button onClick={() => setItiPage(p => Math.max(1, p - 1))} className={`h-10 px-6 rounded-xl text-[10px] font-black transition-all ${itiPage > 1 ? "bg-white shadow-sm hover:bg-slate-50" : "opacity-30 pointer-events-none"}`}>TRƯỚC</button>
+                      <span className="text-[11px] font-black text-slate-400">{itiPage} / {Math.ceil(itineraryBlocks.length / ITI_PAGE_SIZE)}</span>
+                      <button onClick={() => setItiPage(p => p + 1)} className={`h-10 px-6 rounded-xl text-[10px] font-black transition-all ${itiPage * ITI_PAGE_SIZE < itineraryBlocks.length ? "bg-white shadow-sm hover:bg-slate-50" : "opacity-30 pointer-events-none"}`}>SAU</button>
+                    </div>
                   </div>
-                </div>
-
-                {/* RIGHT: results */}
-                {resultsOpen && (
-                  <div className="lg:col-span-7">
-                    <SectionCard>
-                      {/* Tabs */}
-                      <div className="flex items-center justify-between gap-2 p-3 border-b bg-slate-50">
-                        <div className="flex items-center gap-2">
-                          {(
-                            [
-                              { key: "itinerary", label: "Lịch trình" },
-                              { key: "flights", label: "Flights" },
-                              { key: "hotels", label: "Hotels" },
-                              { key: "cars", label: "Cars" },
-                            ] as { key: TabKey; label: string }[]
-                          ).map((t) => (
-                            <button
-                              key={t.key}
-                              type="button"
-                              onClick={() => {
-                                setTab(t.key);
-                                setPage(1);
-                              }}
-                              className={`rounded-lg px-3 py-2 text-sm ${
-                                tab === t.key
-                                  ? "bg-[#0891b2] text-white"
-                                  : "bg-white border text-slate-700"
-                              }`}
-                            >
-                              {t.label}
-                            </button>
-                          ))}
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => setResultsOpen(false)}
-                          className="rounded-lg border bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                          title="Thu gọn"
-                        >
-                          Thu gọn
-                        </button>
-                      </div>
-
-                      <div className="p-4">
-                        {/* ITINERARY */}
-                        {tab === "itinerary" && (
-                          <>
-                            <div className="mb-3 flex flex-wrap gap-2">
-                              {MOCK_ITINERARY.map((d, i) => {
-                                const pageOfDay = Math.floor(i / ITI_PAGE_SIZE) + 1;
-                                const isVisible = pageOfDay === itiPage;
-                                return (
-                                  <button
-                                    key={d.day}
-                                    type="button"
-                                    onClick={() => setItiPage(pageOfDay)}
-                                    className={`px-3 py-1.5 rounded-md text-sm border ${
-                                      isVisible
-                                        ? "bg-[#0891b2] text-white border-[#0891b2]"
-                                        : "bg-white text-slate-700"
-                                    }`}
-                                    title={`Nhảy đến Ngày ${d.day}`}
-                                  >
-                                    Ngày {d.day}
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            <div className="space-y-4">
-                              {itiSlice.map((d, idx) => (
-                                <div
-                                  key={`${d.day}-${idx}`}
-                                  className="rounded-xl border bg-white overflow-hidden"
-                                >
-                                  <div className="px-4 py-2 bg-slate-50 flex items-center justify-between">
-                                    <div className="font-semibold text-slate-900">
-                                      Ngày {d.day} — {d.city}
-                                    </div>
-                                    <div className="text-xs text-slate-600">{d.date}</div>
-                                  </div>
-                                  <ol className="p-4 space-y-3">
-                                    {d.items.map((it: any, i2: number) => (
-                                      <li key={i2} className="flex gap-3">
-                                        <div className="mt-1">
-                                          <span
-                                            className={`inline-block h-2.5 w-2.5 rounded-full ${
-                                              it.type === "move"
-                                                ? "bg-sky-500"
-                                                : it.type === "meal"
-                                                ? "bg-amber-500"
-                                                : "bg-emerald-500"
-                                            }`}
-                                          />
-                                        </div>
-                                        <div>
-                                          <div className="text-sm text-slate-600">{it.time}</div>
-                                          <div className="text-slate-900 font-medium">{it.title}</div>
-                                          {"note" in it && it.note && (
-                                            <div className="text-xs text-slate-600">{it.note}</div>
-                                          )}
-                                        </div>
-                                      </li>
-                                    ))}
-                                  </ol>
-                                </div>
-                              ))}
-                            </div>
-
-                            <Pager
-                              total={MOCK_ITINERARY.length}
-                              page={itiPage}
-                              onChange={setItiPage}
-                              pageSize={ITI_PAGE_SIZE}
-                            />
-                          </>
-                        )}
-
-                        {/* FLIGHTS */}
-                        {tab === "flights" && (
-                          <>
-                            <div className="grid grid-cols-1 gap-4">
-                              {pageSlice.map((f: any) => (
-                                <FlightCard key={f.id} f={f} />
-                              ))}
-                            </div>
-                            <Pager
-                              total={MOCK_FLIGHTS.length}
-                              page={page}
-                              onChange={setPage}
-                              pageSize={PAGE_SIZE}
-                            />
-                          </>
-                        )}
-
-                        {/* HOTELS */}
-                        {tab === "hotels" && (
-                          <>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              {pageSlice.map((h: any) => (
-                                <HotelCard key={h.id} h={h} />
-                              ))}
-                            </div>
-                            <Pager
-                              total={MOCK_HOTELS.length}
-                              page={page}
-                              onChange={setPage}
-                              pageSize={PAGE_SIZE}
-                            />
-                          </>
-                        )}
-
-                        {/* CARS */}
-                        {tab === "cars" && (
-                          <>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              {pageSlice.map((c: any) => (
-                                <CarCard key={c.id} c={c} />
-                              ))}
-                            </div>
-                            <Pager
-                              total={MOCK_CARS.length}
-                              page={page}
-                              onChange={setPage}
-                              pageSize={PAGE_SIZE}
-                            />
-                          </>
-                        )}
-                      </div>
-                    </SectionCard>
-                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center p-12 text-center italic text-slate-400 text-xs">Lộ trình chi tiết sẽ hiển thị tại đây sau khi bạn tạo.</div>
                 )}
               </div>
-
-              {/* Floating open button when collapsed */}
-              {!resultsOpen && (
-                <button
-                  type="button"
-                  onClick={() => setResultsOpen(true)}
-                  className="fixed bottom-6 right-6 rounded-2xl bg-[#0891b2] px-4 py-3 text-white shadow-lg hover:brightness-110"
-                >
-                  Mở kết quả
-                </button>
-              )}
-            </main>
+            </GlassCard>
           </div>
-        </div>
-      </div>
+        )}
+      </main>
+    </div>
+  );
+}
 
-      {/* ✅ Mobile Threads Drawer */}
-      {threadsOpen && (
-        <div className="fixed inset-0 z-[120] lg:hidden">
-          {/* overlay */}
-          <button
-            type="button"
-            aria-label="Đóng danh sách chat"
-            onClick={() => setThreadsOpen(false)}
-            className="absolute inset-0 bg-black/35"
-          />
+// Sub-components
+function InputBox({ label, value, onChange, type = "text" }: any) {
+  return (
+    <div className="space-y-1">
+      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+      <input type={type} value={value} onChange={e => onChange(e.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-[11px] font-bold outline-none focus:border-cyan-500 transition-all shadow-sm bg-white" />
+    </div>
+  );
+}
 
-          {/* bottom sheet */}
-          <div className="absolute inset-0 flex items-end justify-center p-3">
-            <div className="w-full max-w-md rounded-t-2xl bg-white shadow-xl ring-1 ring-black/10 overflow-hidden">
-              <div className="p-4 border-b bg-slate-50 flex items-center justify-between">
-                <div className="font-semibold text-slate-900">Chats</div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      createNewChat();
-                      setThreadsOpen(false);
-                    }}
-                    className="inline-flex items-center gap-2 rounded-lg bg-[#0891b2] px-3 py-2 text-sm text-white hover:brightness-110"
-                  >
-                    <IconPlus className="h-5 w-5" />
-                    New
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setThreadsOpen(false)}
-                    className="h-9 w-9 rounded-lg hover:bg-slate-100 grid place-items-center"
-                    aria-label="Đóng"
-                    title="Đóng"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-
-              <div className="max-h-[70vh] overflow-auto p-2">
-                <div className="space-y-1">
-                  {sortedThreads.map((t) => {
-                    const isActive = t.id === activeId;
-                    return (
-                      <div
-                        key={t.id}
-                        className={`group flex items-center justify-between gap-2 rounded-xl px-3 py-2 ring-1 ${
-                          isActive
-                            ? "bg-[#0891b2]/10 ring-[#0891b2]/20"
-                            : "bg-white ring-black/5 hover:bg-slate-50"
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveId(t.id);
-                            setThreadsOpen(false);
-                          }}
-                          className="flex-1 text-left"
-                          title={t.title}
-                        >
-                          <div className="text-sm font-medium text-slate-900 line-clamp-1">
-                            {t.title}
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            {new Date(t.updatedAt).toLocaleString("vi-VN")}
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => deleteChat(t.id)}
-                          className="rounded-lg p-2 hover:bg-white"
-                          title="Xoá cuộc chat"
-                        >
-                          <IconTrash className="h-5 w-5 text-slate-600" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="p-3 border-t bg-white">
-                <button
-                  type="button"
-                  onClick={() => setThreadsOpen(false)}
-                  className="w-full h-11 rounded-xl border border-slate-200 text-slate-800 hover:bg-slate-50"
-                >
-                  Đóng
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+function MiniInput({ label, value, onChange }: any) {
+  return (
+    <div className="w-12 space-y-1 text-center">
+      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</label>
+      <input type="text" value={value} onChange={e => onChange(e.target.value)} className="w-full rounded-xl border border-slate-200 py-2 text-center text-xs font-bold shadow-sm bg-white outline-none focus:border-cyan-500 transition-all" />
     </div>
   );
 }

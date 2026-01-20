@@ -3,7 +3,7 @@ import { jwtDecode } from "jwt-decode";
 
 // Public routes (không cần login)
 const publicPaths = [
-  "/auth/login",
+  "/pages/login",
 ];
 
 // User routes (chỉ cần login)
@@ -18,60 +18,60 @@ const adminPaths = [
 ];
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  // const { pathname } = request.nextUrl;
 
-  // 1. Bỏ qua next internal & static files
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.match(/\.(png|jpg|jpeg|gif|svg|webp|ico|mp4|mp3|woff2?|ttf|otf|eot|json|avif)$/)
-  ) {
-    return NextResponse.next();
-  }
+  // // 1. Bỏ qua next internal & static files
+  // if (
+  //   pathname.startsWith("/_next") ||
+  //   pathname.match(/\.(png|jpg|jpeg|gif|svg|webp|ico|mp4|mp3|woff2?|ttf|otf|eot|json|avif)$/)
+  // ) {
+  //   return NextResponse.next();
+  // }
 
-  const refreshToken = request.cookies.get("refresh_token")?.value;
-  const accessToken = request.cookies.get("access_token")?.value;
+  // const refreshToken = request.cookies.get("refresh_token")?.value;
+  // const accessToken = request.cookies.get("access_token")?.value;
 
-  // 2. Chưa đăng nhập
-  if (!refreshToken) {
-    if (publicPaths.includes(pathname)) {
-      return NextResponse.next();
-    }
+  // // 2. Chưa đăng nhập
+  // if (!refreshToken) {
+  //   if (publicPaths.includes(pathname)) {
+  //     return NextResponse.next();
+  //   }
 
-    return NextResponse.redirect(
-      new URL("/pages/login", request.url)
-    );
-  }
+  //   return NextResponse.redirect(
+  //     new URL("/pages/login", request.url)
+  //   );
+  // }
 
-  // 3. Có token → decode
-  if (accessToken) {
-    try {
-      const decoded = jwtDecode<{ scope?: string }>(accessToken);
-      const scope = decoded?.scope;
+  // // 3. Có token → decode
+  // if (accessToken) {
+  //   try {
+  //     const decoded = jwtDecode<{ scope?: string }>(accessToken);
+  //     const scope = decoded?.scope;
 
-      // 4. Admin route
-      if (adminPaths.some(path => pathname.startsWith(path))) {
-        if (scope !== "ADMIN") {
-          return NextResponse.redirect(
-            new URL("/access-denied", request.url)
-          );
-        }
-      }
+  //     // 4. Admin route
+  //     if (adminPaths.some(path => pathname.startsWith(path))) {
+  //       if (scope !== "ADMIN") {
+  //         return NextResponse.redirect(
+  //           new URL("/access-denied", request.url)
+  //         );
+  //       }
+  //     }
 
-      // 5. Đã login mà vào login page → đá về home
-      if (publicPaths.includes(pathname)) {
-        return NextResponse.redirect(
-          new URL("/", request.url)
-        );
-      }
+  //     // 5. Đã login mà vào login page → đá về home
+  //     if (publicPaths.includes(pathname)) {
+  //       return NextResponse.redirect(
+  //         new URL("/", request.url)
+  //       );
+  //     }
 
-      return NextResponse.next();
-    } catch (error) {
-      console.error("JWT decode error:", error);
-      return NextResponse.redirect(
-        new URL("/pages/login", request.url)
-      );
-    }
-  }
+  //     return NextResponse.next();
+  //   } catch (error) {
+  //     console.error("JWT decode error:", error);
+  //     return NextResponse.redirect(
+  //       new URL("/pages/login", request.url)
+  //     );
+  //   }
+  // }
 
-  return NextResponse.next();
+  // return NextResponse.next();
 }
