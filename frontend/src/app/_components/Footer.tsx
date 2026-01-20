@@ -1,5 +1,6 @@
 // src/app/_components/Footer.tsx
 "use client";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export default function Footer() {
@@ -13,12 +14,14 @@ export default function Footer() {
     <footer className="bg-[#0891b2]/10">
       <div className="container mx-auto px-4 py-10 grid md:grid-cols-4 gap-8">
         <div>
-          <div className="flex items-center gap-2 text-slate-900 font-semibold text-lg">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#0891b2]/10 text-[#0891b2]">
-              ✈️
-            </span>
-            VivuPlan
-          </div>
+          <Link href="/" className="inline-flex items-center">
+            <img
+              src="/brand/logo.png"
+              alt="VivuPlan"
+              className="h-24 w-auto object-contain"
+            />
+          </Link>
+
           <p className="mt-3 text-slate-700">
             Nền tảng du lịch giúp bạn tìm kiếm và đặt chuyến bay, khách sạn & xe
             thuê tốt nhất.
