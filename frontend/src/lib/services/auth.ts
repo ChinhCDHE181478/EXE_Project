@@ -65,33 +65,46 @@ export const authService = {
    * Verify OTP and retrieve tokens
    * Backend: POST /auth/otp-login/verify
    */
-  async otpLoginVerify(body: { email: string; otp: string }) {
-    const res = await apiFetch<BaseJsonResponse<LoginResponse>>(
-      "/auth/otp-login/verify",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          email: body.email.trim(),
-          otp: body.otp.trim(),
-        }),
-      },
-      { auth: false }
-    );
+  // src/services/authService.ts
 
-    if (!res || String(res.status).toUpperCase() !== "SUCCESS") {
-      throw new Error(res?.message || "OTP verification failed");
-    }
+async otpLoginVerify(body: { email: string; otp: string }) {
+  const res = await apiFetch<BaseJsonResponse<LoginResponse>>(
+    "/auth/otp-login/verify",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        email: body.email.trim(),
+        otp: body.otp.trim(),
+      }),
+    },
+    { auth: false }
+  );
 
-    const data = res.result;
+  if (!res || String(res.status).toUpperCase() !== "SUCCESS") {
+    throw new Error(res?.message || "OTP verification failed");
+  }
 
-    // Tokens are required for authenticated requests
-    if (!data?.accessToken || !data?.refreshToken) {
-      throw new Error("Token payload missing in login response");
-    }
+  const data = res.result;
 
-    tokenStore.setTokens(data.accessToken, data.refreshToken);
-    return data;
-  },
+  if (!data?.accessToken || !data?.refreshToken) {
+    throw new Error("Token payload missing in login response");
+  }
+
+  // 1. Lưu Token để apiClient sử dụng cho các request sau
+  tokenStore.setTokens(data.accessToken, data.refreshToken);
+
+  // 2. Lưu thông tin User (bao gồm ID) để Header và các trang khác sử dụng
+  if (typeof window !== "undefined" && data.user) {
+    const userSession = {
+      id: data.user.id, // Lưu ID vào đây
+      displayName: data.user.displayName || "Thành viên VivuPlan",
+      email: data.user.email,
+    };
+    localStorage.setItem("vivuplan_user", JSON.stringify(userSession));
+  }
+
+  return data;
+},
 
   /**
    * Logout
