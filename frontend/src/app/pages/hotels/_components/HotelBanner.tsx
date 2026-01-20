@@ -112,9 +112,9 @@ export default function HotelBanner() {
             <h1 className="text-4xl md:text-6xl font-extrabold text-white drop-shadow">
               Tìm khách sạn phù hợp ngay hôm nay
             </h1>
-            <p className="mt-3 text-white/95 text-lg">
+            {/* <p className="mt-3 text-white/95 text-lg">
               So sánh giá từ hàng trăm đối tác và đặt phòng chỉ trong vài bước
-            </p>
+            </p> */}
           </div>
 
           <div className="mx-auto mt-8 max-w-6xl rounded-2xl bg-white/95 backdrop-blur-sm shadow-xl ring-1 ring-black/5 p-4">
