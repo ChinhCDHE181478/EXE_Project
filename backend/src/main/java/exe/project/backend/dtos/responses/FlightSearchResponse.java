@@ -24,7 +24,8 @@ public class FlightSearchResponse {
     public static class FlightOffers {
         private String token;
 
-        private String link;
+        @JsonIgnoreProperties(ignoreUnknown = true)
+        private String linkFFFlight;
 
         private String tripType;
 

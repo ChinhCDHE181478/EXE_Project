@@ -47,7 +47,7 @@ public class FlightController {
             @RequestParam String departDate,
             @RequestParam(required = false, defaultValue = "") String returnDate,
             @RequestParam(required = false, defaultValue = "1") String page,
-            @RequestParam(required = false, defaultValue = "") String adults,
+            @RequestParam(required = false, defaultValue = "1") String adults,
             @RequestParam(required = false, defaultValue = "") String childrenAge,
             @RequestParam(required = false, defaultValue = "") String cabinClass,
             @RequestParam(required = false, defaultValue = "VND") String currency_code
