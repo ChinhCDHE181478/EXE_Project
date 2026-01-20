@@ -11,8 +11,7 @@ export default function Header() {
 
   // ✅ chỉ tính cờ ẩn, KHÔNG return ở đây
   const shouldHide =
-    pathname?.startsWith("/admin") ||
-    pathname?.startsWith("/chatbox");
+    pathname?.startsWith("/admin") || pathname?.startsWith("/chatbox");
 
   const nav = [
     { href: "/pages/flights", label: "Chuyến bay" },
@@ -113,15 +112,13 @@ export default function Header() {
         shadow-sm
       "
     >
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[#0891b2]/10 text-[#0891b2]">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-              <path d="M2 12l7 2 4 8 2-6 6 2 1-2-6-4 3-8-2-1-6 7-9 2z" />
-            </svg>
-          </span>
-          <span className="text-xl font-semibold tracking-tight">VivuPlan</span>
+      <div className="container mx-auto px-4 h-17 flex items-center justify-between">
+        <Link href="/" className="flex items-center shrink-0">
+          <img
+            src="/brand/logo.png"
+            alt="VivuPlan"
+            className="h-24 w-auto object-contain"
+          />
         </Link>
 
         {/* Menu desktop */}
@@ -163,7 +160,9 @@ export default function Header() {
             {open && (
               <div className="absolute right-0 mt-2 w-[260px] rounded-xl border bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-[90]">
                 <div className="p-2">
-                  <div className="text-xs text-slate-500 px-2 py-2">Danh mục</div>
+                  <div className="text-xs text-slate-500 px-2 py-2">
+                    Danh mục
+                  </div>
 
                   <div className="grid gap-1">
                     {nav.map((n) => (
@@ -231,8 +230,14 @@ export default function Header() {
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-slate-800 hover:text-[#0891b2] hover:border-[#0891b2] transition-colors"
                   title={user.email}
                 >
-                  <span className="max-w-[140px] truncate">{user.displayName}</span>
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor">
+                  <span className="max-w-[140px] truncate">
+                    {user.displayName}
+                  </span>
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="currentColor"
+                  >
                     <path d="M7 10l5 5 5-5H7z" />
                   </svg>
                 </button>
@@ -244,7 +249,9 @@ export default function Header() {
                         <div className="text-sm font-medium text-slate-900">
                           {user.displayName}
                         </div>
-                        <div className="text-xs text-slate-600 truncate">{user.email}</div>
+                        <div className="text-xs text-slate-600 truncate">
+                          {user.email}
+                        </div>
                       </div>
 
                       <Link
