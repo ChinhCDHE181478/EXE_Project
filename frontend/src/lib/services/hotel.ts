@@ -79,12 +79,7 @@ export const hotelService = {
       { method: "GET" },
       { auth: false }
     );
-    const data = unwrap<any>(res, "Get link error");
-
-    if (typeof data === "string") return { url: data };
-    if (data?.url) return { url: data.url };
-    if (data?.link) return { url: data.link };
-    return data;
+    return unwrap<any>(res, "Get hotels error");
   },
 
   /**
@@ -111,12 +106,7 @@ export const hotelService = {
       { method: "GET" },
       { auth: false }
     );
-    const data = unwrap<any>(res, "Get link error");
-
-    if (typeof data === "string") return { url: data };
-    if (data?.url) return { url: data.url };
-    if (data?.link) return { url: data.link };
-    return data;
+    return unwrap<any>(res, "Get hotels error");
   },
 
   /**
@@ -140,9 +130,14 @@ export const hotelService = {
     );
     const data = unwrap<any>(res, "Get link error");
 
+    // Backend might return either a plain string URL or an object.
     if (typeof data === "string") return { url: data };
     if (data?.url) return { url: data.url };
     if (data?.link) return { url: data.link };
+    // Fallback: return as-is so the UI can inspect.
     return data;
   },
 };
+
+// Backward/forward compat: some pages import hotelApi instead of hotelService.
+export const hotelApi = hotelService;

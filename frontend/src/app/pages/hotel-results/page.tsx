@@ -53,10 +53,22 @@ function parseStars(v: string | null) {
     .filter((n) => Number.isFinite(n));
 }
 
+function decodeLoose(v: string) {
+  // URLSearchParams *usually* decodes, but users can still end up with values
+  // that are double-encoded or contain '+' for spaces.
+  const plusFixed = String(v ?? "").replace(/\+/g, " ");
+  try {
+    return decodeURIComponent(plusFixed);
+  } catch {
+    return plusFixed;
+  }
+}
+
 // Backward-compatible: still accept old keys (q/checkIn/checkOut/lat/lng)
 function stateFromSearchParams(sp: ReturnType<typeof useSearchParams>): SearchState {
+  const rawDestination = sp.get("destination") || sp.get("q") || "";
   return {
-    destination: sp.get("destination") || sp.get("q") || "",
+    destination: decodeLoose(rawDestination),
     arrivalDate: sp.get("arrivalDate") || sp.get("checkIn") || undefined,
     departureDate: sp.get("departureDate") || sp.get("checkOut") || undefined,
     adults: parseNum(sp.get("adults")) ?? 2,
@@ -177,17 +189,32 @@ export default function HotelResultsPage() {
   const [err, setErr] = useState("");
   const [items, setItems] = useState<UiHotel[]>([]);
   const [total, setTotal] = useState<number | undefined>(undefined);
+  const [hoveredHotelId, setHoveredHotelId] = useState<string | null>(null);
+  const [selectedHotelId, setSelectedHotelId] = useState<string | null>(null);
+
+  // Backend typically returns a fixed number of items per page.
+  // We lock it based on the first non-empty response so pagination stays stable.
+  const [pageSize, setPageSize] = useState<number>(20);
+  const currentPage = state.pageNumber ?? 1;
+  const totalPages = useMemo(() => {
+    if (typeof total !== "number" || total <= 0) return 1;
+    return Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+  }, [total, pageSize]);
 
   useEffect(() => {
     setState(stateFromSearchParams(sp));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sp.toString()]);
 
-  const canSearch = useMemo(() => state.destination.trim().length > 0, [state.destination]);
+  const canSearch = useMemo(() => {
+    const hasText = state.destination.trim().length > 0;
+    const hasCoord = !!(state.latitude && state.longitude);
+    return hasText || hasCoord;
+  }, [state.destination, state.latitude, state.longitude]);
 
   const runSearch = async (next?: SearchState) => {
     const s = next ?? state;
-    if (!s.destination.trim()) return;
+    if (!s.destination.trim() && !(s.latitude && s.longitude)) return;
 
     // BE requires dates
     if (!s.arrivalDate || !s.departureDate) {
@@ -249,7 +276,7 @@ export default function HotelResultsPage() {
       const mapped = (Array.isArray(listRaw) ? listRaw : []).map(mapToUiHotel);
 
       setItems(mapped);
-      const totalFromEnvelope = (data as any)?.result?.count;
+      const totalFromEnvelope = (data as any)?.result?.count ?? (data as any)?.count;
       setTotal(
         (data as any)?.total ??
           (data as any)?.count ??
@@ -270,12 +297,21 @@ export default function HotelResultsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canSearch]);
 
+  useEffect(() => {
+    if (items.length > 0 && pageSize === 20) setPageSize(items.length);
+  }, [items.length, pageSize]);
+
   const updateAndSearch = (patch: Partial<SearchState>) => {
     const next = { ...state, ...patch };
     setState(next);
     // App Router route
-    router.push(`/hotel-results?${toQueryString(next)}`);
+    router.push(`/pages/hotel-results?${toQueryString(next)}`);
     runSearch(next);
+  };
+
+  const goToPage = (page: number) => {
+    const p = Math.min(Math.max(1, page), totalPages);
+    updateAndSearch({ pageNumber: p });
   };
 
   useEffect(() => {
@@ -361,6 +397,12 @@ export default function HotelResultsPage() {
               error={err}
               total={total}
               items={items}
+              page={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+              hoveredHotelId={hoveredHotelId}
+              onHoverHotel={(id) => setHoveredHotelId(id)}
+              selectedHotelId={selectedHotelId}
               onOpenDeal={async (hotelId) => {
                 if (!state.arrivalDate || !state.departureDate) return;
                 const data = await hotelService.link({
@@ -380,7 +422,25 @@ export default function HotelResultsPage() {
           </section>
 
           <aside className="col-span-12 lg:col-span-5 xl:col-span-4 2xl:col-span-5 px-4 lg:px-0 pb-6">
-            <MapPane hotels={items} />
+            <MapPane
+              hotels={items}
+              hoveredHotelId={hoveredHotelId}
+              onHoverHotel={(id) => setHoveredHotelId(id)}
+              onSelectHotel={(id) => {
+                setSelectedHotelId(id);
+                // Also highlight on map/list like Skyscanner.
+                setHoveredHotelId(id);
+              }}
+              onSearchByMap={(payload) => {
+                // Search around map center using your BE coordinate endpoint.
+                updateAndSearch({
+                  latitude: payload.latitude,
+                  longitude: payload.longitude,
+                  radius: payload.radius,
+                  pageNumber: 1,
+                });
+              }}
+            />
           </aside>
         </div>
       </div>

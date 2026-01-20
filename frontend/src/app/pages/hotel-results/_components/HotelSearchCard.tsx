@@ -47,10 +47,18 @@ export default function HotelSearchCard({
     });
   };
 
+  const BG =
+    "https://images.unsplash.com/photo-1651376589881-0e5a7eb15ae4?ixlib=rb-4.1.0&auto=format&fit=crop&q=80&w=2070";
+
   return (
-    <section className="bg-slate-100">
-      <div className="container mx-auto px-4 py-6">
-        <div className="mx-auto max-w-6xl rounded-2xl bg-white shadow-xl ring-1 ring-black/5 p-4">
+    <section className="relative overflow-hidden">
+      <div
+        className="absolute inset-0 bg-center bg-cover"
+        style={{ backgroundImage: `url(${BG})` }}
+      />
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/70 via-slate-950/40 to-slate-950/10" />
+      <div className="relative container mx-auto px-4 py-8">
+        <div className="mx-auto max-w-6xl rounded-2xl bg-white/95 backdrop-blur shadow-2xl ring-1 ring-black/10 p-4">
           <div className="grid gap-0 md:grid-cols-[1.4fr_1fr_1fr_1.2fr_auto] rounded-xl overflow-hidden ring-1 ring-black/5 bg-white divide-y md:divide-y-0 md:divide-x divide-black/5">
             <div className="px-4 py-3">
               <label className="text-[11px] uppercase tracking-wide text-slate-600">
