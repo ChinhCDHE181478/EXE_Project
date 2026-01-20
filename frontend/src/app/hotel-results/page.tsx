@@ -53,10 +53,22 @@ function parseStars(v: string | null) {
     .filter((n) => Number.isFinite(n));
 }
 
+function decodeLoose(v: string) {
+  // URLSearchParams *usually* decodes, but users can still end up with values
+  // that are double-encoded or contain '+' for spaces.
+  const plusFixed = String(v ?? "").replace(/\+/g, " ");
+  try {
+    return decodeURIComponent(plusFixed);
+  } catch {
+    return plusFixed;
+  }
+}
+
 // Backward-compatible: still accept old keys (q/checkIn/checkOut/lat/lng)
 function stateFromSearchParams(sp: ReturnType<typeof useSearchParams>): SearchState {
+  const rawDestination = sp.get("destination") || sp.get("q") || "";
   return {
-    destination: sp.get("destination") || sp.get("q") || "",
+    destination: decodeLoose(rawDestination),
     arrivalDate: sp.get("arrivalDate") || sp.get("checkIn") || undefined,
     departureDate: sp.get("departureDate") || sp.get("checkOut") || undefined,
     adults: parseNum(sp.get("adults")) ?? 2,
@@ -177,17 +189,31 @@ export default function HotelResultsPage() {
   const [err, setErr] = useState("");
   const [items, setItems] = useState<UiHotel[]>([]);
   const [total, setTotal] = useState<number | undefined>(undefined);
+  const [hoveredHotelId, setHoveredHotelId] = useState<string | null>(null);
+
+  // Backend typically returns a fixed number of items per page.
+  // We lock it based on the first non-empty response so pagination stays stable.
+  const [pageSize, setPageSize] = useState<number>(20);
+  const currentPage = state.pageNumber ?? 1;
+  const totalPages = useMemo(() => {
+    if (typeof total !== "number" || total <= 0) return 1;
+    return Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+  }, [total, pageSize]);
 
   useEffect(() => {
     setState(stateFromSearchParams(sp));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sp.toString()]);
 
-  const canSearch = useMemo(() => state.destination.trim().length > 0, [state.destination]);
+  const canSearch = useMemo(() => {
+    const hasText = state.destination.trim().length > 0;
+    const hasCoord = !!(state.latitude && state.longitude);
+    return hasText || hasCoord;
+  }, [state.destination, state.latitude, state.longitude]);
 
   const runSearch = async (next?: SearchState) => {
     const s = next ?? state;
-    if (!s.destination.trim()) return;
+    if (!s.destination.trim() && !(s.latitude && s.longitude)) return;
 
     // BE requires dates
     if (!s.arrivalDate || !s.departureDate) {
@@ -249,7 +275,7 @@ export default function HotelResultsPage() {
       const mapped = (Array.isArray(listRaw) ? listRaw : []).map(mapToUiHotel);
 
       setItems(mapped);
-      const totalFromEnvelope = (data as any)?.result?.count;
+      const totalFromEnvelope = (data as any)?.result?.count ?? (data as any)?.count;
       setTotal(
         (data as any)?.total ??
           (data as any)?.count ??
@@ -270,12 +296,21 @@ export default function HotelResultsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canSearch]);
 
+  useEffect(() => {
+    if (items.length > 0 && pageSize === 20) setPageSize(items.length);
+  }, [items.length, pageSize]);
+
   const updateAndSearch = (patch: Partial<SearchState>) => {
     const next = { ...state, ...patch };
     setState(next);
     // App Router route
     router.push(`/hotel-results?${toQueryString(next)}`);
     runSearch(next);
+  };
+
+  const goToPage = (page: number) => {
+    const p = Math.min(Math.max(1, page), totalPages);
+    updateAndSearch({ pageNumber: p });
   };
 
   useEffect(() => {
@@ -327,7 +362,7 @@ export default function HotelResultsPage() {
       <div className="lg:hidden px-4 pt-3">
         <button
           type="button"
-          onClick={() => setFiltersOpen(true)}
+          onClick={() => setFiltersOpen((v) => !v)}
           className="w-full h-11 rounded-xl bg-white shadow-sm ring-1 ring-black/10 px-4 flex items-center justify-between"
         >
           <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
@@ -336,7 +371,7 @@ export default function HotelResultsPage() {
                 <path d="M3 5h18v2H3V5zm4 6h10v2H7v-2zm3 6h4v2h-4v-2z" />
               </svg>
             </span>
-            Bộ lọc
+{filtersOpen ? "Ẩn bộ lọc" : "Bộ lọc"}
           </div>
           <div className="text-sm text-slate-500 flex items-center gap-1">
             Mở
@@ -346,6 +381,30 @@ export default function HotelResultsPage() {
           </div>
         </button>
       </div>
+
+
+
+      {/* INLINE_MOBILE_FILTER_PANEL */}
+      {filtersOpen && (
+        <div className="lg:hidden px-4 pt-3">
+          <div className="rounded-2xl bg-white shadow-sm ring-1 ring-black/10 overflow-hidden">
+            <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
+              <div className="font-semibold text-slate-900">Bộ lọc</div>
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(false)}
+                className="h-9 w-9 rounded-lg hover:bg-slate-100 grid place-items-center"
+                aria-label="Đóng"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4">
+              <FilterSidebar value={filters} onChange={(patch) => updateAndSearch(patch)} />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="w-full px-0 py-0">
         <div className="grid grid-cols-12 gap-2">
@@ -361,6 +420,11 @@ export default function HotelResultsPage() {
               error={err}
               total={total}
               items={items}
+              page={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+              hoveredHotelId={hoveredHotelId}
+              onHoverHotel={(id) => setHoveredHotelId(id)}
               onOpenDeal={async (hotelId) => {
                 if (!state.arrivalDate || !state.departureDate) return;
                 const data = await hotelService.link({
@@ -380,57 +444,23 @@ export default function HotelResultsPage() {
           </section>
 
           <aside className="col-span-12 lg:col-span-5 xl:col-span-4 2xl:col-span-5 px-4 lg:px-0 pb-6">
-            <MapPane hotels={items} />
+            <MapPane
+              hotels={items}
+              hoveredHotelId={hoveredHotelId}
+              onHoverHotel={(id) => setHoveredHotelId(id)}
+              onSearchByMap={(payload) => {
+                // Search around map center using your BE coordinate endpoint.
+                updateAndSearch({
+                  latitude: payload.latitude,
+                  longitude: payload.longitude,
+                  radius: payload.radius,
+                  pageNumber: 1,
+                });
+              }}
+            />
           </aside>
         </div>
       </div>
-
-      {filtersOpen && (
-        <div className="fixed inset-0 z-[120] lg:hidden">
-          <button
-            aria-label="Đóng bộ lọc"
-            onClick={() => setFiltersOpen(false)}
-            className="absolute inset-0 bg-black/35"
-          />
-
-          <div className="absolute inset-0 flex items-end justify-center p-3">
-            <div className="w-full max-w-md rounded-t-2xl bg-white shadow-xl ring-1 ring-black/10 overflow-hidden">
-              <div className="px-4 py-3 border-b bg-slate-50 flex items-center justify-between">
-                <div className="font-semibold text-slate-900">Bộ lọc</div>
-                <button
-                  onClick={() => setFiltersOpen(false)}
-                  className="h-9 w-9 rounded-lg hover:bg-slate-100 grid place-items-center"
-                  aria-label="Đóng"
-                  type="button"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="max-h-[75vh] overflow-auto">
-                <FilterSidebar value={filters} onChange={(patch) => updateAndSearch(patch)} />
-              </div>
-
-              <div className="p-3 border-t bg-white">
-                <button
-                  type="button"
-                  onClick={() => setFiltersOpen(false)}
-                  className="w-full h-11 rounded-xl bg-[#0891b2] text-white font-semibold hover:brightness-110"
-                >
-                  Áp dụng
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFiltersOpen(false)}
-                  className="mt-2 w-full h-11 rounded-xl border border-slate-200 text-slate-800 hover:bg-slate-50"
-                >
-                  Đóng
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

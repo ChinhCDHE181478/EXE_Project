@@ -94,7 +94,7 @@ export default function HotelBanner() {
     }
 
     // App Router route
-    router.push(`/pages/hotel-results?${params.toString()}`);
+    router.push(`/hotel-results?${params.toString()}`);
   };
 
   return (

@@ -1,85 +1,18 @@
 "use client";
 
-import { useState } from "react";
-
 export type UiHotel = {
   id: string;
   name: string;
   city: string;
   priceText?: string;
+  strikeText?: string;
   rating10?: number;
   reviews?: number;
   img: string;
   linkId: string;
+  lat?: number;
+  lng?: number;
 };
-
-function InlineChat() {
-  const [text, setText] = useState("");
-  const [messages, setMessages] = useState<{ role: "ai" | "user"; content: string }[]>([
-    { role: "ai", content: "“Gợi ý lịch trình 2N1Đ ở Hà Nội, gần trung tâm, ngân sách 2.5tr/đêm…”" },
-  ]);
-
-  const send = () => {
-    if (!text.trim()) return;
-    setMessages((m) => [...m, { role: "user", content: text }]);
-    setText("");
-    setTimeout(() => {
-      setMessages((m) => [...m, { role: "ai", content: "Mình sẽ đề xuất vài phương án lưu trú phù hợp ngay bên dưới nha!" }]);
-    }, 400);
-  };
-
-  return (
-    <div className="relative rounded-2xl overflow-hidden shadow-xl ring-1 ring-black/5">
-      <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: 'url("https://m.yodycdn.com/blog/hinh-nen-thien-nhien-4k-yody-vn-11.jpg")' }}
-        aria-hidden
-      />
-      <div className="absolute inset-0 bg-white/40 supports-[backdrop-filter]:backdrop-blur-[0.5px]" />
-
-      <div className="absolute left-4 top-4 z-10">
-        <div className="flex items-center gap-3 rounded-xl bg-white/90 supports-[backdrop-filter]:backdrop-blur-[2px] px-3.5 py-2.5 ring-1 ring-black/5 shadow">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#0891b2] text-white font-bold">
-            V
-          </span>
-          <div className="leading-tight">
-            <div className="font-semibold text-slate-900">VivuPlan</div>
-            <div className="text-xs text-slate-600">Trợ lý Vivu</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="relative">
-        <div className="p-5 mt-6 pt-16 max-h-[55vh] min-h-[260px] overflow-auto space-y-3">
-          {messages.map((m, i) => (
-            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : ""}`}>
-              <div
-                className={`rounded-xl px-4 py-2.5 max-w-[75%] leading-relaxed ${
-                  m.role === "user" ? "bg-[#0891b2] text-white" : "bg-white/90 ring-1 ring-black/5"
-                }`}
-              >
-                {m.content}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-2 p-4">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Nhập câu hỏi…"
-            className="flex-1 bg-white/90 rounded-lg px-3 py-3 outline-none border border-slate-300"
-            onKeyDown={(e) => e.key === "Enter" && send()}
-          />
-          <button onClick={send} className="px-5 py-3 rounded-lg bg-[#0891b2] text-white font-medium">
-            Gửi
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function ResultsPane({
   loading,
@@ -125,8 +58,6 @@ export default function ResultsPane({
         </div>
       </div>
 
-      <InlineChat />
-
       {loading && <div className="text-slate-600 px-1">Đang tải kết quả…</div>}
       {!loading && error && <div className="text-rose-600 px-1">{error}</div>}
 
@@ -145,7 +76,10 @@ export default function ResultsPane({
                   </div>
 
                   <div className="mt-3 flex items-center justify-between">
-                    <div className="text-sky-700 font-semibold">{h.priceText ? `Từ ${h.priceText}` : "Xem giá tốt nhất"}</div>
+                    <div>
+                      <div className="text-sky-700 font-semibold">{h.priceText ? `Từ ${h.priceText}` : "Xem giá tốt nhất"}</div>
+                      {h.strikeText ? <div className="text-xs text-slate-500 line-through mt-0.5">{h.strikeText}</div> : null}
+                    </div>
                     <button
                       type="button"
                       className="px-4 py-2 rounded-md ring-1 ring-black/10 hover:bg-slate-50"

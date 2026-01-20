@@ -79,7 +79,12 @@ export const hotelService = {
       { method: "GET" },
       { auth: false }
     );
-    return unwrap<any>(res, "Get hotels error");
+    const data = unwrap<any>(res, "Get link error");
+
+    if (typeof data === "string") return { url: data };
+    if (data?.url) return { url: data.url };
+    if (data?.link) return { url: data.link };
+    return data;
   },
 
   /**
@@ -106,7 +111,12 @@ export const hotelService = {
       { method: "GET" },
       { auth: false }
     );
-    return unwrap<any>(res, "Get hotels error");
+    const data = unwrap<any>(res, "Get link error");
+
+    if (typeof data === "string") return { url: data };
+    if (data?.url) return { url: data.url };
+    if (data?.link) return { url: data.link };
+    return data;
   },
 
   /**
@@ -117,6 +127,7 @@ export const hotelService = {
     hotelId: string;
     arrivalDate: string;
     departureDate: string;
+    roomQty?: string;
     adults?: string;
     childrenAge?: string;
     languagecode?: string;
@@ -127,6 +138,11 @@ export const hotelService = {
       { method: "GET" },
       { auth: false }
     );
-    return unwrap<any>(res, "Get hotels error");
+    const data = unwrap<any>(res, "Get link error");
+
+    if (typeof data === "string") return { url: data };
+    if (data?.url) return { url: data.url };
+    if (data?.link) return { url: data.link };
+    return data;
   },
 };
