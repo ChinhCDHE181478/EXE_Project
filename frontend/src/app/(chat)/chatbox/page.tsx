@@ -27,7 +27,10 @@ const LS_USER_KEY = "vivuplan_user";
 const ITI_PAGE_SIZE = 2;
 const LS_PLACE_GEO_CACHE = "vivuplan_place_geo_cache_v1";
 
-function readPlaceCache(): Record<string, { lat: number; lng: number; name?: string }> {
+function readPlaceCache(): Record<
+  string,
+  { lat: number; lng: number; name?: string }
+> {
   if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem(LS_PLACE_GEO_CACHE);
@@ -37,7 +40,9 @@ function readPlaceCache(): Record<string, { lat: number; lng: number; name?: str
   }
 }
 
-function writePlaceCache(next: Record<string, { lat: number; lng: number; name?: string }>) {
+function writePlaceCache(
+  next: Record<string, { lat: number; lng: number; name?: string }>,
+) {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(LS_PLACE_GEO_CACHE, JSON.stringify(next));
@@ -56,17 +61,22 @@ function extractNameFromReason(reason?: string) {
 function Logo() {
   return (
     <Link href="/" className="flex items-center gap-2 group">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-600 text-white shadow-lg shadow-cyan-200 transition-all group-hover:scale-110">
-        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
-          <path d="M2 12l7 2 4 8 2-6 6 2 1-2-6-4 3-8-2-1-6 7-9 2z" />
-        </svg>
-      </div>
-      <span className="text-2xl font-black tracking-tighter text-slate-800">VivuPlan</span>
+      <img
+        src="/brand/logo.png"
+        alt="VivuPlan"
+        className="h-24 w-auto object-contain"
+      />
     </Link>
   );
 }
 
-function GlassCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function GlassCard({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <div
       className={`rounded-[2.5rem] bg-white/80 backdrop-blur-2xl border border-white shadow-[0_8px_40px_rgb(0,0,0,0.04)] ${className}`}
@@ -94,10 +104,14 @@ export default function ChatboxPage() {
   const [activeId, setActiveId] = useState<string>("");
   const [text, setText] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
-  const [itineraryCache, setItineraryCache] = useState<Record<string, ItineraryResponse>>({});
+  const [itineraryCache, setItineraryCache] = useState<
+    Record<string, ItineraryResponse>
+  >({});
   const [itiPage, setItiPage] = useState(1);
 
-  const [placeGeo, setPlaceGeo] = useState<Record<string, { lat: number; lng: number; name?: string }>>({});
+  const [placeGeo, setPlaceGeo] = useState<
+    Record<string, { lat: number; lng: number; name?: string }>
+  >({});
   const [placeGeoLoading, setPlaceGeoLoading] = useState(false);
 
   const userIdRef = useRef<string>("1");
@@ -117,7 +131,7 @@ export default function ChatboxPage() {
 
   const activeThread = useMemo(
     () => threads.find((t) => t.id === activeId) || null,
-    [threads, activeId]
+    [threads, activeId],
   );
 
   useEffect(() => {
@@ -137,7 +151,7 @@ export default function ChatboxPage() {
     const loadHistory = async () => {
       try {
         const res = await fetch(
-          `${API_BASE}/conversation/history/${userIdRef.current}?page=1&page_size=20`
+          `${API_BASE}/conversation/history/${userIdRef.current}?page=1&page_size=20`,
         );
         const data = await res.json();
         const items = data?.data || [];
@@ -172,11 +186,14 @@ export default function ChatboxPage() {
           content: m.parts?.[0]?.text || "",
         }));
         if (data?.itinerary) {
-          setItineraryCache((prev) => ({ ...prev, [activeId]: data.itinerary }));
+          setItineraryCache((prev) => ({
+            ...prev,
+            [activeId]: data.itinerary,
+          }));
           setIsFormOpen(false);
         }
         setThreads((prev) =>
-          prev.map((t) => (t.id === activeId ? { ...t, messages: msgs } : t))
+          prev.map((t) => (t.id === activeId ? { ...t, messages: msgs } : t)),
         );
       } catch (e) {
         console.error(e);
@@ -192,9 +209,16 @@ export default function ChatboxPage() {
     setThreads((prev) =>
       prev.map((t) =>
         t.id === activeId
-          ? { ...t, messages: [...t.messages, { role: "user", content }, { role: "ai", content: "" }] }
-          : t
-      )
+          ? {
+              ...t,
+              messages: [
+                ...t.messages,
+                { role: "user", content },
+                { role: "ai", content: "" },
+              ],
+            }
+          : t,
+      ),
     );
     setText("");
     setIsStreaming(true);
@@ -202,14 +226,21 @@ export default function ChatboxPage() {
       const res = await fetch(`${API_BASE}/conversation/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: activeId, user_id: userIdRef.current, content }),
+        body: JSON.stringify({
+          session_id: activeId,
+          user_id: userIdRef.current,
+          content,
+        }),
         signal: abortRef.current.signal,
       });
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
       let lastAI = "";
       while (true) {
-        const { done, value } = (await reader?.read()) || { done: true, value: undefined };
+        const { done, value } = (await reader?.read()) || {
+          done: true,
+          value: undefined,
+        };
         if (done) break;
         const chunk = decoder.decode(value);
         const lines = chunk.split("\n");
@@ -221,7 +252,8 @@ export default function ChatboxPage() {
             setItineraryCache((prev) => ({ ...prev, [activeId]: obj.data }));
             setIsFormOpen(false);
           }
-          const delta = obj?.delta || obj?.content || (typeof obj === "string" ? obj : "");
+          const delta =
+            obj?.delta || obj?.content || (typeof obj === "string" ? obj : "");
           if (delta) {
             lastAI += delta;
             setThreads((p) =>
@@ -230,11 +262,13 @@ export default function ChatboxPage() {
                   ? {
                       ...t,
                       messages: t.messages.map((m, i) =>
-                        i === t.messages.length - 1 ? { ...m, content: lastAI } : m
+                        i === t.messages.length - 1
+                          ? { ...m, content: lastAI }
+                          : m,
                       ),
                     }
-                  : t
-              )
+                  : t,
+              ),
             );
           }
         }
@@ -309,7 +343,9 @@ export default function ChatboxPage() {
   useEffect(() => {
     if (!mounted || !places.length) return;
 
-    const missing = places.filter((p) => !Number.isFinite(p.lat) || !Number.isFinite(p.lng));
+    const missing = places.filter(
+      (p) => !Number.isFinite(p.lat) || !Number.isFinite(p.lng),
+    );
     if (!missing.length) return;
 
     let cancelled = false;
@@ -326,7 +362,11 @@ export default function ChatboxPage() {
 
         // Skip if cache already has it (race-safe)
         const existed = cache[p.place_id];
-        if (existed && Number.isFinite(existed.lat) && Number.isFinite(existed.lng)) {
+        if (
+          existed &&
+          Number.isFinite(existed.lat) &&
+          Number.isFinite(existed.lng)
+        ) {
           setPlaceGeo((prev) => ({ ...prev, [p.place_id]: existed }));
           continue;
         }
@@ -349,7 +389,10 @@ export default function ChatboxPage() {
               if (Number.isFinite(lat) && Number.isFinite(lng)) {
                 cache[p.place_id] = { lat, lng, name: p.name };
                 writePlaceCache(cache);
-                setPlaceGeo((prev) => ({ ...prev, [p.place_id]: cache[p.place_id] }));
+                setPlaceGeo((prev) => ({
+                  ...prev,
+                  [p.place_id]: cache[p.place_id],
+                }));
               } else {
                 console.warn("Invalid lat/lng:", p.place_id, result);
               }
@@ -391,8 +434,10 @@ export default function ChatboxPage() {
   }, [currentItinerary]);
 
   const resolvedCount = useMemo(
-    () => places.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng)).length,
-    [places]
+    () =>
+      places.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+        .length,
+    [places],
   );
 
   if (!mounted) return null;
@@ -405,7 +450,13 @@ export default function ChatboxPage() {
             href="/"
             className="flex items-center gap-2 text-slate-500 font-bold hover:text-cyan-600 transition-colors"
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <svg
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
               <path d="M15 19l-7-7 7-7" />
             </svg>
             Quay lại
@@ -417,7 +468,9 @@ export default function ChatboxPage() {
             <button
               key={t}
               className={`px-4 py-2 rounded-lg text-[10px] font-black tracking-widest ${
-                t === "LỊCH TRÌNH" ? "bg-white text-cyan-600 shadow-sm" : "text-slate-400"
+                t === "LỊCH TRÌNH"
+                  ? "bg-white text-cyan-600 shadow-sm"
+                  : "text-slate-400"
               }`}
             >
               {t}
@@ -438,7 +491,15 @@ export default function ChatboxPage() {
             <button
               onClick={() => {
                 const id = newSessionIdClient();
-                setThreads([{ id, title: "Chuyến đi mới", updatedAt: Date.now(), messages: [] }, ...threads]);
+                setThreads([
+                  {
+                    id,
+                    title: "Chuyến đi mới",
+                    updatedAt: Date.now(),
+                    messages: [],
+                  },
+                  ...threads,
+                ]);
                 setActiveId(id);
                 setIsFormOpen(true);
                 setItiPage(1);
@@ -456,22 +517,33 @@ export default function ChatboxPage() {
                     setItiPage(1);
                   }}
                   className={`w-full text-left p-4 rounded-2xl transition-all ${
-                    t.id === activeId ? "bg-white shadow-md ring-1 ring-black/5" : "opacity-60 hover:opacity-100"
+                    t.id === activeId
+                      ? "bg-white shadow-md ring-1 ring-black/5"
+                      : "opacity-60 hover:opacity-100"
                   }`}
                 >
-                  <div className="text-sm font-bold text-slate-700 truncate">{t.title}</div>
-                  <div className="text-[10px] text-slate-400 mt-1 uppercase">Sess: {t.id.slice(-5)}</div>
+                  <div className="text-sm font-bold text-slate-700 truncate">
+                    {t.title}
+                  </div>
+                  <div className="text-[10px] text-slate-400 mt-1 uppercase">
+                    Sess: {t.id.slice(-5)}
+                  </div>
                 </button>
               ))}
             </div>
           </GlassCard>
         </div>
 
-        <div className={`${resultsOpen ? "col-span-5" : "col-span-9"} flex flex-col h-full relative overflow-hidden`}>
+        <div
+          className={`${resultsOpen ? "col-span-5" : "col-span-9"} flex flex-col h-full relative overflow-hidden`}
+        >
           <GlassCard className="flex flex-col h-full overflow-hidden border-none shadow-2xl">
             <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/20">
               {activeThread?.messages.map((m, i) => (
-                <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  key={i}
+                  className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                >
                   <div
                     className={`max-w-[85%] rounded-3xl px-5 py-3 text-sm font-medium ${
                       m.role === "user"
@@ -492,7 +564,9 @@ export default function ChatboxPage() {
 
             <div
               className={`absolute bottom-24 left-6 right-6 transition-all duration-500 ${
-                isFormOpen ? "translate-y-0 opacity-100" : "translate-y-[120%] opacity-0 pointer-events-none"
+                isFormOpen
+                  ? "translate-y-0 opacity-100"
+                  : "translate-y-[120%] opacity-0 pointer-events-none"
               }`}
             >
               <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 ring-1 ring-black/5">
@@ -500,18 +574,31 @@ export default function ChatboxPage() {
                   <span className="text-[10px] font-black uppercase text-slate-800 tracking-widest">
                     Cấu hình lịch trình
                   </span>
-                  <button onClick={() => setIsFormOpen(false)} className="text-slate-400 hover:text-slate-600">
+                  <button
+                    onClick={() => setIsFormOpen(false)}
+                    className="text-slate-400 hover:text-slate-600"
+                  >
                     ✕
                   </button>
                 </div>
                 <div className="grid grid-cols-4 gap-3 mb-4">
-                  <InputBox label="Từ" value={config.from} onChange={(v: any) => setConfig({ ...config, from: v })} />
-                  <InputBox label="Đến" value={config.to} onChange={(v: any) => setConfig({ ...config, to: v })} />
+                  <InputBox
+                    label="Từ"
+                    value={config.from}
+                    onChange={(v: any) => setConfig({ ...config, from: v })}
+                  />
+                  <InputBox
+                    label="Đến"
+                    value={config.to}
+                    onChange={(v: any) => setConfig({ ...config, to: v })}
+                  />
                   <InputBox
                     label="Ngày"
                     type="date"
                     value={config.startDate}
-                    onChange={(v: any) => setConfig({ ...config, startDate: v })}
+                    onChange={(v: any) =>
+                      setConfig({ ...config, startDate: v })
+                    }
                   />
                   <InputBox
                     label="Ngân sách"
@@ -527,13 +614,23 @@ export default function ChatboxPage() {
                     <input
                       type="text"
                       value={config.extra}
-                      onChange={(e) => setConfig({ ...config, extra: e.target.value })}
+                      onChange={(e) =>
+                        setConfig({ ...config, extra: e.target.value })
+                      }
                       className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold"
                     />
                   </div>
                   <div className="flex gap-2">
-                    <MiniInput label="Khách" value={config.guests} onChange={(v: any) => setConfig({ ...config, guests: v })} />
-                    <MiniInput label="Ngày" value={config.days} onChange={(v: any) => setConfig({ ...config, days: v })} />
+                    <MiniInput
+                      label="Khách"
+                      value={config.guests}
+                      onChange={(v: any) => setConfig({ ...config, guests: v })}
+                    />
+                    <MiniInput
+                      label="Ngày"
+                      value={config.days}
+                      onChange={(v: any) => setConfig({ ...config, days: v })}
+                    />
                   </div>
                   <button
                     onClick={handleDesign}
@@ -550,10 +647,17 @@ export default function ChatboxPage() {
               <button
                 onClick={() => setIsFormOpen(!isFormOpen)}
                 className={`h-12 w-12 flex items-center justify-center rounded-2xl transition-all ${
-                  isFormOpen ? "bg-cyan-50 text-cyan-600" : "bg-slate-50 text-slate-400"
+                  isFormOpen
+                    ? "bg-cyan-50 text-cyan-600"
+                    : "bg-slate-50 text-slate-400"
                 }`}
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
                   <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4v2" />
                 </svg>
               </button>
@@ -564,7 +668,9 @@ export default function ChatboxPage() {
                   placeholder="Hỏi thêm hoặc tinh chỉnh..."
                   className="w-full bg-transparent px-4 py-3 text-sm font-bold outline-none resize-none h-12"
                   onKeyDown={(e) =>
-                    e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendText())
+                    e.key === "Enter" &&
+                    !e.shiftKey &&
+                    (e.preventDefault(), sendText())
                   }
                 />
                 <button
@@ -572,7 +678,13 @@ export default function ChatboxPage() {
                   disabled={!text.trim()}
                   className="absolute right-2 h-9 w-9 bg-cyan-600 text-white flex items-center justify-center rounded-xl"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={3.5}
+                  >
                     <path d="M12 5l7 7-7 7M5 12h14" />
                   </svg>
                 </button>
@@ -585,10 +697,14 @@ export default function ChatboxPage() {
           <div className="col-span-4 h-full">
             <GlassCard className="h-full flex flex-col overflow-hidden shadow-2xl">
               <div className="p-6 border-b flex justify-between items-center bg-white/50">
-                <span className="text-sm font-black uppercase text-slate-800">Lộ trình chi tiết</span>
-                <div className="h-8 w-8 bg-cyan-600 text-white rounded-full flex items-center justify-center text-[10px] font-black">
-                  AI
-                </div>
+                <span className="text-sm font-black uppercase text-slate-800">
+                  Lộ trình chi tiết
+                </span>
+                <img
+                  src="/brand/mascot.png"
+                  alt="Trợ lý Vivu"
+                  className="h-16 w-16 rounded-full object-contain ring-1 ring-black/5 bg-white"
+                />
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/10 custom-scrollbar">
@@ -596,14 +712,20 @@ export default function ChatboxPage() {
                 {places.length > 0 && (
                   <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[11px] font-black uppercase text-slate-800">Bản đồ</span>
+                      <span className="text-[11px] font-black uppercase text-slate-800">
+                        Bản đồ
+                      </span>
                       <span className="text-[10px] font-bold text-slate-400">
                         {resolvedCount}/{places.length} điểm
                         {placeGeoLoading ? " • đang tải..." : ""}
                       </span>
                     </div>
 
-                    <PlacesMapPane places={places} hoveredPlaceId={null} onHoverPlace={() => {}} />
+                    <PlacesMapPane
+                      places={places}
+                      hoveredPlaceId={null}
+                      onHoverPlace={() => {}}
+                    />
                   </div>
                 )}
 
@@ -611,12 +733,21 @@ export default function ChatboxPage() {
                 {itineraryBlocks.length > 0 ? (
                   <div className="space-y-4">
                     {itineraryBlocks
-                      .slice((itiPage - 1) * ITI_PAGE_SIZE, itiPage * ITI_PAGE_SIZE)
+                      .slice(
+                        (itiPage - 1) * ITI_PAGE_SIZE,
+                        itiPage * ITI_PAGE_SIZE,
+                      )
                       .map((d: any) => (
-                        <div key={d.day} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+                        <div
+                          key={d.day}
+                          className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100"
+                        >
                           <div className="flex justify-between items-center mb-3 pb-2 border-b">
                             <span className="text-[11px] font-black text-slate-800 uppercase">
-                              Ngày {d.day} <span className="text-cyan-500 ml-1">{d.date}</span>
+                              Ngày {d.day}{" "}
+                              <span className="text-cyan-500 ml-1">
+                                {d.date}
+                              </span>
                             </span>
                             <span className="text-[9px] font-black text-cyan-600 px-2 py-0.5 bg-cyan-50 rounded-lg">
                               {d.city}
@@ -624,8 +755,13 @@ export default function ChatboxPage() {
                           </div>
                           <div className="space-y-3">
                             {d.items.map((it: any, idx: number) => (
-                              <div key={idx} className="flex gap-4 text-xs font-medium text-slate-600">
-                                <span className="w-12 font-black text-slate-300 italic uppercase">{it.time}</span>
+                              <div
+                                key={idx}
+                                className="flex gap-4 text-xs font-medium text-slate-600"
+                              >
+                                <span className="w-12 font-black text-slate-300 italic uppercase">
+                                  {it.time}
+                                </span>
                                 <span>{it.title}</span>
                               </div>
                             ))}
@@ -637,18 +773,23 @@ export default function ChatboxPage() {
                       <button
                         onClick={() => setItiPage((p) => Math.max(1, p - 1))}
                         className={`h-10 px-6 rounded-xl text-[10px] font-black ${
-                          itiPage > 1 ? "bg-white" : "opacity-30 pointer-events-none"
+                          itiPage > 1
+                            ? "bg-white"
+                            : "opacity-30 pointer-events-none"
                         }`}
                       >
                         TRƯỚC
                       </button>
                       <span className="text-[11px] font-black text-slate-400">
-                        {itiPage} / {Math.ceil(itineraryBlocks.length / ITI_PAGE_SIZE)}
+                        {itiPage} /{" "}
+                        {Math.ceil(itineraryBlocks.length / ITI_PAGE_SIZE)}
                       </span>
                       <button
                         onClick={() => setItiPage((p) => p + 1)}
                         className={`h-10 px-6 rounded-xl text-[10px] font-black ${
-                          itiPage * ITI_PAGE_SIZE < itineraryBlocks.length ? "bg-white" : "opacity-30 pointer-events-none"
+                          itiPage * ITI_PAGE_SIZE < itineraryBlocks.length
+                            ? "bg-white"
+                            : "opacity-30 pointer-events-none"
                         }`}
                       >
                         SAU
@@ -672,7 +813,9 @@ export default function ChatboxPage() {
 function InputBox({ label, value, onChange, type = "text" }: any) {
   return (
     <div className="space-y-1">
-      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+        {label}
+      </label>
       <input
         type={type}
         value={value}
@@ -686,7 +829,9 @@ function InputBox({ label, value, onChange, type = "text" }: any) {
 function MiniInput({ label, value, onChange }: any) {
   return (
     <div className="w-12 space-y-1 text-center">
-      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{label}</label>
+      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+        {label}
+      </label>
       <input
         type="text"
         value={value}
