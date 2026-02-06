@@ -55,7 +55,6 @@ export default function VivuplanPremiumApp() {
     } catch (e) { console.error(e); }
   };
 
-  // HÀM TẠO ĐOẠN CHAT MỚI
   const handleNewChat = () => {
     setActiveId("");
     setMessages([]);
@@ -114,7 +113,7 @@ export default function VivuplanPremiumApp() {
   return (
     <div className="fixed inset-0 w-screen h-screen bg-[#FDFDFD] text-slate-900 font-sans flex flex-col md:flex-row overflow-hidden">
       
-      {/* MOBILE HEADER - z-[100] */}
+      {/* MOBILE HEADER */}
       <div className="md:hidden flex items-center justify-between p-4 bg-white border-b z-[100] shrink-0 h-[64px]">
         <img src="/brand/logo.png" className="h-6 w-auto" alt="Vivuplan" />
         <button onClick={() => setIsSidebarOpen(true)} className="p-2 bg-slate-100 rounded-lg">
@@ -132,7 +131,6 @@ export default function VivuplanPremiumApp() {
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-2 text-slate-400"><X size={20} /></button>
         </header>
         
-        {/* NÚT TẠO ĐOẠN CHAT MỚI */}
         <div className="px-4 pt-4 shrink-0">
           <button 
             onClick={handleNewChat}
@@ -142,7 +140,6 @@ export default function VivuplanPremiumApp() {
           </button>
         </div>
 
-        {/* LỊCH SỬ CHAT */}
         <div className="h-32 border-b border-slate-50 overflow-y-auto p-4 space-y-1 shrink-0 bg-slate-50/30 mt-2 mx-4 rounded-xl">
             <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2"><History size={12}/> Lịch sử</p>
             {chatHistory.map((chat) => (
@@ -193,7 +190,7 @@ export default function VivuplanPremiumApp() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 bg-white p-2 rounded-[1.5rem] md:rounded-[2.5rem] shadow-xl border h-96 md:h-[500px] relative overflow-hidden group">
                <PlacesMapPane places={places} />
-               <button onClick={() => setIsMapModalOpen(true)} className="absolute bottom-6 right-6 px-6 py-3 bg-white/95 backdrop-blur rounded-full text-[9px] md:text-[11px] font-black shadow-lg text-[#0056D2] flex items-center gap-2 uppercase tracking-widest hover:bg-[#0056D2] hover:text-white transition-all z-10">
+               <button onClick={() => setIsMapModalOpen(true)} className="absolute bottom-6 right-6 px-6 py-3 bg-white/95 backdrop-blur rounded-full text-[9px] md:text-[11px] font-black shadow-lg text-[#0056D2] flex items-center gap-2 uppercase tracking-widest hover:bg-[#0056D2] hover:text-white transition-all z-10 font-black italic">
                  <Maximize2 size={16} /> XEM BẢN ĐỒ
                </button>
             </div>
@@ -211,10 +208,11 @@ export default function VivuplanPremiumApp() {
             <div className="space-y-4">
               {itineraryData?.itinerary?.map((day: any, idx: number) => (
                 <div key={idx} onClick={() => setSelectedDayIdx(idx)} className="bg-white p-4 md:p-6 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-slate-50 flex flex-col md:flex-row gap-4 md:gap-8 items-start md:items-center cursor-pointer hover:shadow-xl transition-all group">
-                   <div className="w-full md:w-48 h-32 bg-slate-100 rounded-[1.2rem] md:rounded-[1.5rem] overflow-hidden flex-shrink-0 relative">
-                      <img src={getBannerPhoto(day.location)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="day banner" />
-                      <div className="absolute top-2 right-2 bg-[#0056D2] text-white text-[8px] font-black px-2 py-1 rounded-full shadow-lg">Ngày {idx+1}</div>
+                   {/* THAY THẾ ẢNH BẰNG TEXT KHỐI */}
+                   <div className="w-full md:w-32 h-20 bg-slate-100 rounded-[1rem] flex items-center justify-center shrink-0 border border-slate-100 group-hover:bg-[#0056D2] transition-colors">
+                      <p className="text-sm font-black text-slate-400 uppercase italic tracking-tighter group-hover:text-white">Ngày {idx+1}</p>
                    </div>
+                   
                    <div className="flex-1">
                       <span className="text-[10px] font-bold text-cyan-800 block mb-1 border-l-3 border-cyan-500 pl-3 uppercase font-bold">{day.date_}</span>
                       <h3 className="text-base md:text-lg font-black italic uppercase group-hover:text-[#0056D2] transition-colors leading-tight font-black italic">KHÁM PHÁ {day.location}</h3>
@@ -227,13 +225,13 @@ export default function VivuplanPremiumApp() {
           </section>
 
           <section className="space-y-8 pt-10 border-t border-slate-100 pb-10">
-            <h2 className="text-lg md:text-xl text-[#0056D2] px-2 italic uppercase tracking-tighter font-black font-black italic">NƠI LƯU TRÚ ĐỀ XUẤT</h2>
+            <h2 className="text-lg md:text-xl text-[#0056D2] px-2 italic uppercase tracking-tighter font-black font-black italic">KHÁCH SẠN ĐỀ XUẤT</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
               {hotelData?.recommended_hotels?.map((h: any, i: number) => (
                 <div key={i} className="bg-white p-4 md:p-6 rounded-[2rem] md:rounded-[3rem] shadow-sm border border-slate-100 group hover:shadow-2xl transition-all flex flex-col">
-                  <div className="h-44 md:h-56 bg-slate-100 rounded-[1.5rem] md:rounded-[2rem] mb-5 overflow-hidden relative shadow-inner">
-                    <img src={`https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=60&w=800&sig=${i}`} className="w-full h-full object-cover group-hover:scale-110 duration-1000" alt="hotel" />
-                    <div className="absolute top-4 left-4 bg-cyan-700 text-white px-3 py-1.5 rounded-full text-[9px] font-black shadow-xl z-10 border border-white/20 uppercase tracking-widest font-black italic"><Star size={10} fill="white" className="mr-1 inline" /> ĐỀ XUẤT</div>
+                  {/* Tạm thời để trống ảnh cho hotel như yêu cầu */}
+                  <div className="h-44 md:h-56 bg-slate-50 rounded-[1.5rem] md:rounded-[2rem] mb-5 overflow-hidden flex items-center justify-center border border-dashed">
+                      <MapPin className="text-slate-300" size={32} />
                   </div>
                   <h4 className="text-base md:text-lg font-black mb-1 group-hover:text-[#0056D2] transition-colors uppercase italic text-slate-800 truncate font-black italic">{h.hotel_id.slice(-5)} Luxury Hotel</h4>
                   <p className="text-[11px] text-slate-600 italic line-clamp-2 mb-6 leading-relaxed normal-case">{h.reasoning}</p>
@@ -247,10 +245,9 @@ export default function VivuplanPremiumApp() {
           </section>
         </main>
 
-        {/* MODAL MAP TOÀN MÀN HÌNH - Sửa khoảng cách Header Mobile */}
+        {/* MODAL MAP TOÀN MÀN HÌNH */}
         {isMapModalOpen && (
           <div className="fixed inset-0 z-[500] bg-white flex flex-col">
-            {/* NÚT X ĐÓNG MAP: Sử dụng fixed và z-[600] để chắc chắn nằm trên cùng */}
             <button 
                 onClick={() => setIsMapModalOpen(false)} 
                 className="fixed top-20 right-8 z-[600] w-14 h-14 bg-black text-white rounded-full flex items-center justify-center shadow-2xl hover:bg-red-600 transition-all"
@@ -263,7 +260,7 @@ export default function VivuplanPremiumApp() {
           </div>
         )}
 
-        {/* Cột Map bên phải (Desktop khi chọn ngày) */}
+        {/* MAP CHI TIẾT CỘT PHẢI (Desktop) */}
         {selectedDayIdx !== null && (
           <aside className="hidden md:block fixed right-0 top-0 bottom-0 w-[450px] bg-white border-l border-slate-100 z-50 shadow-2xl animate-in slide-in-from-right duration-500">
              <PlacesMapPane places={places.filter(p => p.day === itineraryData.itinerary[selectedDayIdx].date_)} />
@@ -273,9 +270,9 @@ export default function VivuplanPremiumApp() {
           </aside>
         )}
 
-        {/* Overlay Chi tiết ngày - pt-24 để tránh dính Header Mobile */}
+        {/* OVERLAY CHI TIẾT NGÀY */}
         {selectedDayIdx !== null && (
-          <div className="fixed inset-0 bg-white z-[120] md:z-[55] pt-24 md:pt-28 p-4 md:p-16 overflow-y-auto animate-in slide-in-from-bottom md:slide-in-from-right duration-500 md:left-[320px] md:right-[450px] border-r border-slate-100 shadow-inner">
+          <div className="fixed inset-0 bg-white z-[120] md:z-[55] pt-16 md:pt-28 p-4 md:p-16 overflow-y-auto animate-in slide-in-from-bottom md:slide-in-from-right duration-500 md:left-[320px] md:right-[450px] border-r border-slate-100 shadow-inner">
              <div className="max-w-2xl mx-auto pb-48 font-black italic uppercase tracking-widest font-black italic">
                 <button onClick={() => setSelectedDayIdx(null)} className="mb-8 flex items-center gap-2 text-[10px] font-black text-[#0056D2] border-2 border-blue-50 px-5 py-2.5 rounded-full bg-white hover:bg-blue-50 transition-all uppercase tracking-widest font-black italic"><ArrowLeft size={14} /> QUAY LẠI LỘ TRÌNH</button>
                 <div className="flex flex-col gap-2 mb-12"><h2 className="text-4xl md:text-6xl font-black text-[#0056D2] italic tracking-tighter uppercase opacity-90 leading-tight italic font-black italic">NGÀY {selectedDayIdx + 1}</h2><p className="text-base md:text-lg font-bold uppercase tracking-[0.2em] italic text-slate-400 font-black italic">{itineraryData.itinerary[selectedDayIdx].location}</p></div>
@@ -297,8 +294,8 @@ export default function VivuplanPremiumApp() {
                    </div>
                    <div className="bg-[#0A0F1A] p-10 md:p-16 rounded-[4rem] text-white relative overflow-hidden shadow-2xl font-black italic">
                        <div className="absolute top-0 right-0 p-10 opacity-5"><Utensils size={150} /></div>
-                       <h4 className="text-[10px] font-black text-[#4ECDC4] uppercase tracking-[0.5em] mb-10 italic flex items-center gap-4 relative z-10"><Utensils size={20} /> ẨM THỰC ĐỊA PHƯƠNG</h4>
-                       <div className="grid grid-cols-1 gap-10 relative z-10">{itineraryData.itinerary[selectedDayIdx].meals.map((meal: string, i: number) => { const [time, dish] = meal.split(':'); return ( <div key={i} className="group pl-6 border-l border-white/10 hover:border-[#4ECDC4] transition-all"><span className="text-[9px] font-black text-slate-500 uppercase block mb-2 italic tracking-[0.2em] group-hover:text-[#4ECDC4]">{time?.toUpperCase()}</span><p className="text-base font-bold text-slate-100 italic tracking-tight uppercase">{dish}</p></div> ); })}</div>
+                       <h4 className="text-[10px] font-black text-[#4ECDC4] uppercase tracking-[0.5em] mb-10 italic flex items-center gap-4 relative z-10 font-black italic tracking-widest"><Utensils size={20} /> ẨM THỰC ĐỊA PHƯƠNG</h4>
+                       <div className="grid grid-cols-1 gap-10 relative z-10">{itineraryData.itinerary[selectedDayIdx].meals.map((meal: string, i: number) => { const [time, dish] = meal.split(':'); return ( <div key={i} className="group pl-6 border-l border-white/10 hover:border-[#4ECDC4] transition-all font-black italic tracking-widest"><span className="text-[9px] font-black text-slate-500 uppercase block mb-2 italic tracking-[0.2em] group-hover:text-[#4ECDC4]">{time?.toUpperCase()}</span><p className="text-base font-bold text-slate-100 italic tracking-tight uppercase">{dish}</p></div> ); })}</div>
                    </div>
                 </div>
              </div>
