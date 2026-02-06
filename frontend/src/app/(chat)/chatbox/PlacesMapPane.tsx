@@ -15,11 +15,10 @@ export type UiPlace = {
 };
 
 declare global {
-  // eslint-disable-next-line no-var
   var L: any;
 }
 
-const DALAT_CENTER = { lat: 11.9416, lng: 108.4383 };
+const VIETNAM_CENTER = { lat: 16.047079, lng: 108.206235 }; // Đà Nẵng / Trung tâm VN
 
 function escapeHtml(s: string) {
   return String(s ?? "")
@@ -30,37 +29,39 @@ function escapeHtml(s: string) {
     .replaceAll("'", "&#039;");
 }
 
+/** * Marker Style: Thiết kế theo tone màu Vivuplan 
+ * Xanh dương đậm (#0056D2) khi active
+ */
 function markerHtml(p: UiPlace, active: boolean) {
-  const bg = active ? "#0f172a" : "#ffffff";
+  const bg = active ? "#0056D2" : "#ffffff";
   const fg = active ? "#ffffff" : "#0f172a";
-  const ring = active ? "0 0 0 2px rgba(56,189,248,.55)" : "0 0 0 1px rgba(15,23,42,.14)";
+  const border = active ? "#ffffff" : "#0056D2";
   const label = p.kind === "restaurant" ? "Ăn" : "Chơi";
+  
   return `
     <div style="
       display:inline-flex; align-items:center; gap:8px;
-      padding:8px 10px; border-radius:999px;
+      padding:6px 12px; border-radius:999px;
       background:${bg}; color:${fg};
-      box-shadow:${ring}, 0 10px 24px rgba(2,6,23,.12);
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto;
-      font-weight:900; font-size:12px;
-      white-space:nowrap;
+      box-shadow: 0 10px 25px -5px rgba(0, 86, 210, 0.3);
+      border: 2px solid ${border};
+      font-family: system-ui, -apple-system, sans-serif;
+      font-weight: 800; font-size: 13px;
+      white-space: nowrap;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     ">
       <span style="
-        display:inline-flex; width:22px; height:22px; border-radius:999px;
+        display:inline-flex; width:18px; height:18px; border-radius:999px;
         align-items:center; justify-content:center;
-        background:${active ? "rgba(255,255,255,.18)" : "rgba(2,6,23,.06)"};
-        font-size:11px;
+        background:${active ? "rgba(255,255,255,0.2)" : "rgba(0,86,210,0.1)"};
+        color: ${active ? "#fff" : "#0056D2"};
+        font-size:10px;
       ">${label}</span>
-      <span style="max-width:160px; overflow:hidden; text-overflow:ellipsis;">
+      <span style="max-width:180px; overflow:hidden; text-overflow:ellipsis;">
         ${escapeHtml(p.name)}
       </span>
     </div>
   `;
-}
-
-function pickCenter(places: UiPlace[]) {
-  const p = places.find((x) => Number.isFinite(x.lat) && Number.isFinite(x.lng));
-  return p ? { lat: Number(p.lat), lng: Number(p.lng) } : DALAT_CENTER;
 }
 
 export default function PlacesMapPane({
@@ -78,9 +79,7 @@ export default function PlacesMapPane({
   const mapRef = useRef<any>(null);
   const markersRef = useRef<Map<string, any>>(new Map());
 
-  const center = useMemo(() => pickCenter(places), [places]);
-
-  // Load Leaflet (CDN) once
+  // Load Leaflet CDN
   useEffect(() => {
     let cancelled = false;
 
@@ -109,99 +108,125 @@ export default function PlacesMapPane({
       if (!mapRef.current && mapEl.current) {
         const L = globalThis.L;
 
+        // Khởi tạo map không có zoomControl để giao diện sạch hơn
         mapRef.current = L.map(mapEl.current, {
-          zoomControl: true,
-          attributionControl: true,
-        }).setView([center.lat, center.lng], 12);
+          zoomControl: false,
+          attributionControl: false,
+        }).setView([VIETNAM_CENTER.lat, VIETNAM_CENTER.lng], 6);
 
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        // Tile layer sang trọng (CartoDB Positron - Sáng và Minimalist)
+        L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
           maxZoom: 19,
-          attribution: "&copy; OpenStreetMap contributors",
         }).addTo(mapRef.current);
+
+        // Thêm lại zoomControl vào góc phải dưới cho gọn
+        L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
       }
     };
 
     load().catch((e) => console.error(e));
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  // Update view when center changes
-  useEffect(() => {
-    if (!mapRef.current) return;
-    mapRef.current.setView([center.lat, center.lng], 12);
-  }, [center.lat, center.lng]);
-
-  // Render markers
+  // Cập nhật Markers và Fit Bounds (Tự động căn chỉnh nhìn rõ toàn bộ điểm)
   useEffect(() => {
     if (!mapRef.current || !globalThis.L) return;
     const L = globalThis.L;
 
-    // Clear old markers
-    for (const [, m] of markersRef.current) {
-      try {
-        m.remove();
-      } catch {}
-    }
+    // Xóa markers cũ
+    markersRef.current.forEach((m) => m.remove());
     markersRef.current.clear();
 
-    const valid = places.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
-    for (const p of valid) {
+    const validPlaces = places.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
+    
+    if (validPlaces.length === 0) return;
+
+    const group = L.featureGroup();
+
+    validPlaces.forEach((p) => {
       const icon = L.divIcon({
         className: "places-div-icon",
-        html: markerHtml(p, false),
-        iconSize: [1, 1],
+        html: markerHtml(p, p.place_id === hoveredPlaceId),
+        iconSize: [0, 0],
         iconAnchor: [0, 0],
       });
 
       const marker = L.marker([Number(p.lat), Number(p.lng)], { icon }).addTo(mapRef.current);
-
+      
       marker.on("mouseover", () => onHoverPlace?.(p.place_id));
       marker.on("mouseout", () => onHoverPlace?.(null));
       marker.on("click", () => onSelectPlace?.(p.place_id));
 
-      const gmaps = `https://www.google.com/maps/search/?api=1&query_place_id=${encodeURIComponent(p.place_id)}`;
-
+      const gmaps = `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${p.place_id}`;
+      
       marker.bindPopup(`
-        <div style="font-family: ui-sans-serif, system-ui; min-width:240px;">
-          <div style="font-weight:900; margin-bottom:6px;">${escapeHtml(p.name)}</div>
-          ${p.reason ? `<div style="font-size:12px; color:#334155; margin-bottom:8px;">${escapeHtml(p.reason)}</div>` : ""}
+        <div style="font-family: system-ui; min-width:200px; padding: 4px;">
+          <div style="font-weight:900; color:#0056D2; font-size:14px; margin-bottom:4px;">${escapeHtml(p.name)}</div>
+          ${p.reason ? `<div style="font-size:12px; color:#64748b; line-height:1.4; margin-bottom:10px;">${escapeHtml(p.reason)}</div>` : ""}
           <a href="${gmaps}" target="_blank" rel="noreferrer"
-             style="font-size:12px; color:#0891b2; text-decoration:underline;">
-            Mở trên Google Maps
+             style="display:block; text-align:center; background:#0056D2; color:#fff; padding:6px; border-radius:8px; font-size:11px; font-weight:bold; text-decoration:none;">
+            Xem trên Google Maps
           </a>
         </div>
-      `);
+      `, {
+        className: 'vivu-popup'
+      });
 
       markersRef.current.set(p.place_id, marker);
-    }
+      marker.addTo(group);
+    });
+
+    // Tự động căn chỉnh bản đồ để thấy hết các điểm
+    mapRef.current.fitBounds(group.getBounds(), { padding: [50, 50], maxZoom: 15 });
+
   }, [places, onHoverPlace, onSelectPlace]);
 
-  // Hover highlight
+  // Hiệu ứng Hover Highlight
   useEffect(() => {
-    if (!globalThis.L) return;
+    if (!globalThis.L || !mapRef.current) return;
     const L = globalThis.L;
-    const activeId = hoveredPlaceId ?? null;
 
-    for (const p of places) {
+    places.forEach((p) => {
       const marker = markersRef.current.get(p.place_id);
-      if (!marker) continue;
+      if (!marker) return;
 
-      const active = activeId === p.place_id;
-      const icon = L.divIcon({
+      const isActive = p.place_id === hoveredPlaceId;
+      marker.setIcon(L.divIcon({
         className: "places-div-icon",
-        html: markerHtml(p, active),
-        iconSize: [1, 1],
+        html: markerHtml(p, isActive),
+        iconSize: [0, 0],
         iconAnchor: [0, 0],
-      });
-      marker.setIcon(icon);
-    }
+      }));
+
+      if (isActive) {
+        marker.setZIndexOffset(1000); // Đưa điểm đang chọn lên trên cùng
+      } else {
+        marker.setZIndexOffset(0);
+      }
+    });
   }, [hoveredPlaceId, places]);
 
   return (
-    <div className="h-[260px] rounded-2xl overflow-hidden ring-1 ring-slate-100 bg-white">
-      <div ref={mapEl} className="h-full w-full" />
+    <div className="h-full w-full bg-slate-50 relative overflow-hidden">
+      <div ref={mapEl} className="h-full w-full z-0" />
+      
+      {/* Overlay hiệu ứng kính mờ ở các cạnh cho sang trọng */}
+      <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_80px_rgba(255,255,255,0.2)]" />
+      
+      <style jsx global>{`
+        .leaflet-popup-content-wrapper {
+          border-radius: 16px !important;
+          padding: 8px !important;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
+        }
+        .leaflet-popup-tip {
+          display: none !important;
+        }
+        .places-div-icon {
+          background: transparent !important;
+          border: none !important;
+        }
+      `}</style>
     </div>
   );
 }

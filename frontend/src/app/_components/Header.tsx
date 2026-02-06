@@ -10,8 +10,7 @@ export default function Header() {
   const pathname = usePathname();
 
   // ✅ chỉ tính cờ ẩn, KHÔNG return ở đây
-  const shouldHide =
-    pathname?.startsWith("/admin") || pathname?.startsWith("/chatbox");
+  const shouldHide = pathname?.startsWith("/admin");
 
   const nav = [
     { href: "/pages/flights", label: "Chuyến bay" },
