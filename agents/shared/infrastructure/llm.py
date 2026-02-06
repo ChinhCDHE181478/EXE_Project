@@ -46,3 +46,30 @@ extract_llm = ChatGroq(
     max_tokens=settings.MODEL_MAX_TOKENS,
     max_retries=2,
 )
+
+# llm = ChatGoogleGenerativeAI(
+#     model=settings.MODEL_NAME,
+#     google_api_key=settings.GOOGLE_API_KEY,
+#     max_tokens=settings.MODEL_MAX_TOKENS,
+#     temperature=settings.MODEL_TEMPERATURE,
+#     streaming=True,
+#     max_retries=3,
+# )
+
+# planning_llm = ChatGoogleGenerativeAI(
+#     model=settings.PLANNING_MODEL_NAME,
+#     google_api_key=settings.GOOGLE_API_KEY,
+#     max_tokens=settings.PLANNING_MODEL_MAX_TOKENS,
+#     temperature=settings.PLANNING_MODEL_TEMPERATURE,
+#     streaming=True,
+#     max_retries=2,
+# )
+
+# extract_llm = ChatGoogleGenerativeAI(
+#     model=settings.MODEL_NAME,
+#     google_api_key=settings.GOOGLE_API_KEY,
+#     temperature=0,
+#     max_tokens=settings.MODEL_MAX_TOKENS,
+#     streaming=True,
+#     max_retries=2,
+# )

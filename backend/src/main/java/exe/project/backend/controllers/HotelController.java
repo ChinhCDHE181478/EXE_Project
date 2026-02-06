@@ -89,6 +89,7 @@ public class HotelController {
                 ));
     }
 
+
     @GetMapping("/search-by-coordinate")
     public CompletableFuture<ResponseEntity<BaseJsonResponse>> searchByCoordinate(
             @RequestParam String latitude,

@@ -12,4 +12,5 @@ class PlanAgentState(AgentState):
     language: str
     attractions: List[Dict[str, Any]]
     restaurants: List[Dict[str, Any]]
+    destination_image_url: Optional[str]
     remaining_steps: RemainingSteps

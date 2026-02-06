@@ -83,4 +83,47 @@ public class FlightController {
                 ));
     }
 
+    @GetMapping("/search2")
+    public CompletableFuture<ResponseEntity<BaseJsonResponse>> search2(
+            @RequestParam String fromId,
+            @RequestParam String toId,
+            @RequestParam String departDate,
+            @RequestParam(required = false, defaultValue = "") String returnDate,
+            @RequestParam(required = false, defaultValue = "1") String page,
+            @RequestParam(required = false, defaultValue = "1") String adults,
+            @RequestParam(required = false, defaultValue = "") String childrenAge,
+            @RequestParam(required = false, defaultValue = "") String cabinClass,
+            @RequestParam(required = false, defaultValue = "VND") String currency_code
+    ) {
+        Map<String, String> queries = new HashMap<>();
+        queries.put("fromId", fromId);
+        queries.put("toId", toId);
+        queries.put("departDate", departDate);
+        queries.put("page", page);
+        queries.put("currency_code", currency_code);
+
+        QueryParamUtil.addIfNotNull(queries,
+                "adults", adults,
+                "childrenAge", childrenAge,
+                "cabinClass", cabinClass,
+                "returnDate", returnDate
+        );
+
+        return flightService.searchFlight(queries)
+                .thenApply(result -> {
+                    BaseJsonResponse baseJsonResponse = BaseJsonResponse.builder()
+                            .status(StatusFlag.SUCCESS.getValue())
+                            .message("Get flights successfully")
+                            .result(result)
+                            .build();
+                    return ResponseEntity.ok(baseJsonResponse);
+                })
+                .exceptionally(ex -> ResponseEntity.badRequest().body(
+                        BaseJsonResponse.builder()
+                                .status(StatusFlag.ERROR.getValue())
+                                .message("Get flights error: " + ex.getMessage())
+                                .build()
+                ));
+    }
+
 }

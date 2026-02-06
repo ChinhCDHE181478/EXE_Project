@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     DEBUG: bool = bool(os.getenv("DEBUG", True))
     ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "*")
 
+    BACKEND_URL: str = os.getenv("BACKEND_URL", "")
+
     MODEL_NAME: str = os.getenv("MODEL_NAME", "")
     MODEL_MAX_TOKENS: int = int(os.getenv("MODEL_MAX_TOKENS", 4096))
     MODEL_TEMPERATURE: float = float(os.getenv("MODEL_TEMPERATURE", 0.1))
@@ -41,6 +43,8 @@ class Settings(BaseSettings):
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "vivuplan")
     CONNECTION_POOL_SIZE: int = int(os.getenv("CONNECTION_POOL_SIZE", 5))
 
+    GOOGLE_API_KEY: str | None = os.getenv("GOOGLE_API_KEY")
+
     GOOGLE_MAPS_API_KEY: str | None = os.getenv("GOOGLE_MAPS_API_KEY")
 
     OPENAI_API_KEY: str | None = os.getenv("OPENAI_API_KEY")
@@ -49,10 +53,19 @@ class Settings(BaseSettings):
 
     RAPIDAPI_HOST: str | None = os.getenv("RAPIDAPI_HOST")
 
+    UNSPLASH_CLIENT_ID: str | None = os.getenv("UNSPLASH_CLIENT_ID")
+
     @field_validator("ALLOWED_ORIGINS")
     @classmethod
     def parse_allowed_origin(cls, v: str) -> List[str]:
         return v.split(",") if v else []
+
+    @field_validator("GOOGLE_API_KEY")
+    @classmethod
+    def parse_google_api_key(cls, v: str | None) -> str:
+        if not v:
+            raise ValueError("GOOGLE_API_KEY is not set")
+        return v
 
     @field_validator("GOOGLE_MAPS_API_KEY")
     @classmethod
@@ -82,5 +95,11 @@ class Settings(BaseSettings):
             raise ValueError("PLANNING_MODEL_NAME is not set")
         return v
 
+    @field_validator("UNSPLASH_CLIENT_ID")
+    @classmethod
+    def parse_unsplash_client_id(cls, v: str | None) -> str:
+        if not v:
+            raise ValueError("UNSPLASH_CLIENT_ID is not set")
+        return v
 
 settings = Settings()

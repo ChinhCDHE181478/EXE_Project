@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from hotel.application.state import HotelAgentState
 from hotel.application.tools import transfer_to_chatbot
 from hotel.domain.prompt import HOTEL_RECOMMENDATION_TEMPLATE, DESTINATION_SEARCH_PROMPT
+from shared.infrastructure.config.settings import settings
 from shared.infrastructure.llm import planning_llm, llm
 from shared.models import (
     HotelDetails,
@@ -211,6 +212,29 @@ async def rank_hotels_node(
             return {"hotel_recommendation": empty_recommendation}
 
     recommendation = HotelRecommendation(**response)
+    
+    # Enrich each recommended hotel with full details and booking link
+    hotels_map = {h.hotel_id: h for h in hotels}
+    language = state.get("language", "vi")
+    currency_code = getattr(search_criteria.currency, "value", "VND")
+    children_age = "0" if search_criteria.children and search_criteria.children > 0 else ""
+    
+    for pick in recommendation.recommended_hotels:
+        # Hydrate details
+        if pick.hotel_id in hotels_map:
+            pick.details = hotels_map[pick.hotel_id]
+        
+        # Generate booking link
+        pick.booking_link = (
+            f"{settings.BACKEND_URL}/hotel/link?hotelId={pick.hotel_id}"
+            f"&arrivalDate={search_criteria.check_in.isoformat()}"
+            f"&departureDate={search_criteria.check_out.isoformat()}"
+            f"&adults={search_criteria.adults or 2}"
+            f"&childrenAge={children_age}"
+            f"&languagecode={language}"
+            f"&currencyCode={currency_code}"
+        )
+    
     return {"hotel_recommendation": recommendation}
 
 
@@ -280,6 +304,28 @@ async def _rank_for_segment(
     chain = prompt | planning_llm | parser
     response = await chain.ainvoke({}, config=config)
     recommendation = HotelRecommendation(**response)
+    
+    # Enrich each recommended hotel with full details and booking link
+    hotels_map = {h.hotel_id: h for h in hotels}
+    currency_code = getattr(criteria.currency, "value", "VND")
+    children_age = "0" if criteria.children and criteria.children > 0 else ""
+    
+    for pick in recommendation.recommended_hotels:
+        # Hydrate details
+        if pick.hotel_id in hotels_map:
+            pick.details = hotels_map[pick.hotel_id]
+        
+        # Generate booking link
+        pick.booking_link = (
+            f"{settings.BACKEND_URL}/hotel/link?hotelId={pick.hotel_id}"
+            f"&arrivalDate={criteria.check_in.isoformat()}"
+            f"&departureDate={criteria.check_out.isoformat()}"
+            f"&adults={criteria.adults or 2}"
+            f"&childrenAge={children_age}"
+            f"&languagecode={language}"
+            f"&currencyCode={currency_code}"
+        )
+    
     return recommendation
 
 

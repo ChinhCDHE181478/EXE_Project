@@ -12,5 +12,7 @@ public interface IFlightService {
 
     CompletableFuture<FlightSearchResponse> searchFlight(Map<String, String> queries);
 
+    CompletableFuture<FlightSearchResponse> searchFlight2(Map<String, String> queries);
+
     CompletableFuture<String> getLink(Map<String, String> queries);
 }
