@@ -7,6 +7,7 @@ from plan.application.nodes import (
     create_itinerary_node,
     get_attractions_node,
     get_restaurants_node,
+    get_destination_image_node,
     transfer_node,
 )
 from plan.application.tools import transfer_to_chatbot
@@ -17,7 +18,7 @@ from plan.application.state import PlanAgentState
 from shared.runtime import ContextSchema
 
 
-@lru_cache(maxsize=1)
+@lru_cache(maxsize=1)  # Temporarily disabled to force rebuild
 def plan_graph():
     graph_builder = StateGraph(
         state_schema=PlanAgentState,
@@ -27,13 +28,16 @@ def plan_graph():
     graph_builder.add_node(CREATE_ITINERARY_NODE, create_itinerary_node)
     graph_builder.add_node("get_attractions_node", get_attractions_node)  # type:ignore
     graph_builder.add_node("get_restaurants_node", get_restaurants_node)  # type:ignore
+    graph_builder.add_node("get_destination_image_node", get_destination_image_node)  # type:ignore
     graph_builder.add_node("transfer_node", transfer_node)
     graph_builder.add_node("tools", ToolNode([transfer_to_chatbot]))
 
     graph_builder.add_edge(START, "get_attractions_node")
     graph_builder.add_edge(START, "get_restaurants_node")
+    graph_builder.add_edge(START, "get_destination_image_node")
     graph_builder.add_edge("get_attractions_node", CREATE_ITINERARY_NODE)
     graph_builder.add_edge("get_restaurants_node", CREATE_ITINERARY_NODE)
+    graph_builder.add_edge("get_destination_image_node", CREATE_ITINERARY_NODE)
     graph_builder.add_edge(CREATE_ITINERARY_NODE, "transfer_node")
     graph_builder.add_edge("transfer_node", "tools")
     graph_builder.add_edge("tools", END)

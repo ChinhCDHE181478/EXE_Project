@@ -130,6 +130,10 @@ class ItineraryResponse(BaseModel):
     """Full response with itinerary and notes"""
 
     trip_summary: TripSummary = Field(description="Overall summary of the trip")
+    destination_image_url: Optional[str] = Field(
+        default=None,
+        description="Hero image URL for the main destination from Unsplash"
+    )
     itinerary: List[ItineraryDay] = Field(description="Day-by-day itinerary")
     notes: Optional[str] = Field(
         description="Extra tips, cultural advice, or booking recommendations"
@@ -191,6 +195,12 @@ class HotelDetails(BaseModel):
 class HotelPick(BaseModel):
     hotel_id: str = Field(description="Unique hotel identifier")
     reasoning: str = Field(description="Reason for recommending this hotel")
+    details: Optional[HotelDetails] = Field(
+        default=None, description="Full hotel details"
+    )
+    booking_link: Optional[str] = Field(
+        default=None, description="Generated booking link for backend API"
+    )
 
 
 class HotelRecommendation(BaseModel):
