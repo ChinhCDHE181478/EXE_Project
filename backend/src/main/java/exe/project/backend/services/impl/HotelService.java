@@ -10,8 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -46,6 +45,41 @@ public class HotelService implements IHotelService {
             } catch (Exception e) {
                 log.error("❌ Error fetching hotel destination: {}", e.getMessage(), e);
                 return null;
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<List<HotelDestinationInfo>> getListHotelDestination(String query) {
+        String endpoint = RapidApiEndPoint.SEARCH_HOTEL_DESTINATION.getPath();
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                JsonNode response = rapidApiService.sendGetDataNode(endpoint, Map.of("query", query));
+
+                List<HotelDestinationInfo> destinations = new ArrayList<>();
+
+                if (response != null && response.isArray() && !response.isEmpty()) {
+
+                    for (JsonNode dest : response) {
+                        HotelDestinationInfo info = new HotelDestinationInfo(
+                                dest.path("dest_id").asText(""),
+                                dest.path("dest_type").asText(""),
+                                dest.path("city_name").asText(""),
+                                dest.path("cc1").asText(""),
+                                dest.path("latitude").asDouble(0.0),
+                                dest.path("longitude").asDouble(0.0)
+                        );
+
+                        destinations.add(info);
+                    }
+                }
+
+                return destinations;
+
+            } catch (Exception e) {
+                log.error("❌ Error fetching hotel destination: {}", e.getMessage(), e);
+                return Collections.emptyList();
             }
         });
     }

@@ -18,4 +18,6 @@ public class FlightDestinationInfor {
     private String name;
     private String country;
     private String countryName;
+    private String city;
+    private String cityName;
 }
