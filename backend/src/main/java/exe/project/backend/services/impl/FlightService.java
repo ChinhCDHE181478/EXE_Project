@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -45,6 +48,33 @@ public class FlightService implements IFlightService {
             } catch (Exception e) {
                 log.error("❌ Error fetching flight destination: {}", e.getMessage(), e);
                 return null;
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<List<FlightDestinationInfor>> getListFlightDestination(String query, String languagecode) {
+        String endpoint = RapidApiEndPoint.SEARCH_FLIGHT_DESTINATION.getPath();
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                JsonNode response = rapidApiService.sendGetDataNode(endpoint, Map.of("query", query));
+
+                List<FlightDestinationInfor> results = new ArrayList<>();
+
+                if (response != null && response.isArray() && !response.isEmpty()) {
+
+                    for (JsonNode dest : response) {
+                        FlightDestinationInfor info = objectMapper.treeToValue(dest, FlightDestinationInfor.class);
+                        results.add(info);
+                    }
+                }
+
+                return results;
+
+            } catch (Exception e) {
+                log.error("❌ Error fetching flight destination: {}", e.getMessage(), e);
+                return Collections.emptyList();
             }
         });
     }
@@ -194,6 +224,58 @@ public class FlightService implements IFlightService {
                         }
                     });
                 });
+    }
+
+    @Override
+    public CompletableFuture<FlightSearchResponse> searchFlight2(Map<String, String> queries) {
+        String endpoint = RapidApiEndPoint.SEARCH_FLIGHT.getPath();
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+
+                JsonNode dataNode =
+                        rapidApiService.sendGetDataNode(endpoint, queries);
+
+                if (dataNode != null) {
+
+                    FlightSearchResponse response =
+                            objectMapper.treeToValue(
+                                    dataNode,
+                                    FlightSearchResponse.class
+                            );
+
+                    // 🔁 Gán custom link
+                    if (response.getFlightOffers() != null) {
+
+                        for (FlightSearchResponse.FlightOffers offer : response.getFlightOffers()) {
+
+                            if (offer.getSegments() == null || offer.getSegments().isEmpty()) {
+                                continue;
+                            }
+
+                            String customLink =
+                                    "https://flights.booking.com/flights/"
+                                            + offer.getSegments().getFirst().getDepartureAirport().getCode() + ".AIRPORT-"
+                                            + offer.getSegments().getFirst().getArrivalAirport().getCode() + ".AIRPORT/d7699_"
+                                            + offer.getToken().substring(6)
+                                            + "/?type=" + offer.getTripType()
+                                            + "&adults=" + queries.get("adults")
+                                            + "&children=" + queries.getOrDefault("childrenAge", "");
+
+                            offer.setLinkFFFlight(customLink);
+                        }
+                    }
+
+                    return response;
+                }
+
+                return null;
+
+            } catch (Exception e) {
+                log.error("❌ Error fetching flights", e);
+                return null;
+            }
+        });
     }
 
 

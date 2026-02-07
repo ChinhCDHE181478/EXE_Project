@@ -39,6 +39,25 @@ public class HotelController {
                 ));
     }
 
+    @GetMapping("/search-list-destination")
+    public CompletableFuture<ResponseEntity<BaseJsonResponse>> searchListDestination(@RequestParam String query) {
+        return hotelService.getListHotelDestination(query)
+                .thenApply(response -> {
+                    BaseJsonResponse baseJsonResponse = BaseJsonResponse.builder()
+                            .status(StatusFlag.SUCCESS.getValue())
+                            .message("Get List Destination successfully")
+                            .result(response)
+                            .build();
+                    return ResponseEntity.ok(baseJsonResponse);
+                })
+                .exceptionally(ex -> ResponseEntity.badRequest().body(
+                        BaseJsonResponse.builder()
+                                .status(StatusFlag.ERROR.getValue())
+                                .message("Get List Destination Error: " + ex.getMessage())
+                                .build()
+                ));
+    }
+
     @GetMapping("/search")
     public CompletableFuture<ResponseEntity<BaseJsonResponse>> search(
             @RequestParam String destination,
@@ -88,6 +107,7 @@ public class HotelController {
                                 .build()
                 ));
     }
+
 
     @GetMapping("/search-by-coordinate")
     public CompletableFuture<ResponseEntity<BaseJsonResponse>> searchByCoordinate(

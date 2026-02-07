@@ -74,6 +74,9 @@ async def create_itinerary_node(
         )
         response.update(chunk)
 
+    # Add destination_image_url to response before creating ItineraryResponse
+    response["destination_image_url"] = state.get("destination_image_url")
+
     return {
         **state,
         "itinerary": ItineraryResponse(**response),
@@ -203,3 +206,32 @@ Respond in {language}.
         return {
             "restaurants": [],
         }
+
+
+async def get_destination_image_node(
+    state: PlanAgentState,
+    config: RunnableConfig,
+) -> dict:
+    """Fetch a destination image from Unsplash."""
+    from shared.tools.search_image import search_unsplash_image
+    
+    plan = state["plan"]
+    if plan is None or not plan.destinations:
+        logger.warning("get_destination_image_node: Missing plan or destinations")
+        return {"destination_image_url": None}
+    
+    # Use the first destination as the primary destination
+    primary_destination = plan.destinations[0]
+    
+    try:
+        image_url = search_unsplash_image(
+            query=f"{primary_destination}",
+            per_page=1,
+            orientation="landscape"
+        )
+        logger.info(f"Fetched image URL for {primary_destination}: {image_url}")
+        return {"destination_image_url": image_url}
+    except Exception as e:
+        logger.error(f"Error fetching destination image: {e}")
+        return {"destination_image_url": None}
+

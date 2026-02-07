@@ -103,3 +103,17 @@ resilience4j:
         maxThreadPoolSize: 50       # số thread tối đa xử lý song song
         coreThreadPoolSize: 10         # thread core
         queueCapacity: 50             # cho phép tối đa 50 request chờ trong queue
+
+# Swagger/OpenAPI Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+    doc-expansion: none
+  show-actuator: false
