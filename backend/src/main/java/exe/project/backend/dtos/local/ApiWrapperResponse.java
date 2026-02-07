@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class ApiWrapperResponse {
     private Boolean status;
-    private String message;
+    private Object message;
     private Long timestamp;
     private JsonNode data;
 }

@@ -40,6 +40,25 @@ public class FlightController {
                 ));
     }
 
+    @GetMapping("/search-list-destination")
+    public CompletableFuture<ResponseEntity<BaseJsonResponse>> searchListDestination(@RequestParam String query, @RequestParam String languagecode) {
+        return flightService.getListFlightDestination(query, languagecode)
+                .thenApply(response -> {
+                    BaseJsonResponse baseJsonResponse = BaseJsonResponse.builder()
+                            .status(StatusFlag.SUCCESS.getValue())
+                            .message("Get Destination successfully")
+                            .result(response)
+                            .build();
+                    return ResponseEntity.ok(baseJsonResponse);
+                })
+                .exceptionally(ex -> ResponseEntity.badRequest().body(
+                        BaseJsonResponse.builder()
+                                .status(StatusFlag.ERROR.getValue())
+                                .message("Get Destination Error: " + ex.getMessage())
+                                .build()
+                ));
+    }
+
     @GetMapping("/search")
     public CompletableFuture<ResponseEntity<BaseJsonResponse>> search(
             @RequestParam String from,
@@ -109,7 +128,7 @@ public class FlightController {
                 "returnDate", returnDate
         );
 
-        return flightService.searchFlight(queries)
+        return flightService.searchFlight2(queries)
                 .thenApply(result -> {
                     BaseJsonResponse baseJsonResponse = BaseJsonResponse.builder()
                             .status(StatusFlag.SUCCESS.getValue())

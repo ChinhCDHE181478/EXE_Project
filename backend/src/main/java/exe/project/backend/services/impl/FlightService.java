@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -45,6 +48,33 @@ public class FlightService implements IFlightService {
             } catch (Exception e) {
                 log.error("❌ Error fetching flight destination: {}", e.getMessage(), e);
                 return null;
+            }
+        });
+    }
+
+    @Override
+    public CompletableFuture<List<FlightDestinationInfor>> getListFlightDestination(String query, String languagecode) {
+        String endpoint = RapidApiEndPoint.SEARCH_FLIGHT_DESTINATION.getPath();
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                JsonNode response = rapidApiService.sendGetDataNode(endpoint, Map.of("query", query));
+
+                List<FlightDestinationInfor> results = new ArrayList<>();
+
+                if (response != null && response.isArray() && !response.isEmpty()) {
+
+                    for (JsonNode dest : response) {
+                        FlightDestinationInfor info = objectMapper.treeToValue(dest, FlightDestinationInfor.class);
+                        results.add(info);
+                    }
+                }
+
+                return results;
+
+            } catch (Exception e) {
+                log.error("❌ Error fetching flight destination: {}", e.getMessage(), e);
+                return Collections.emptyList();
             }
         });
     }
