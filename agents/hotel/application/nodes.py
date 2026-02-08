@@ -231,8 +231,8 @@ async def rank_hotels_node(
             f"&departureDate={search_criteria.check_out.isoformat()}"
             f"&adults={search_criteria.adults or 2}"
             f"&childrenAge={children_age}"
-            f"&languagecode={language}"
-            f"&currencyCode={currency_code}"
+            f"&languagecode=vi"
+            f"&currencyCode=VND"
         )
     
     return {"hotel_recommendation": recommendation}
@@ -322,8 +322,8 @@ async def _rank_for_segment(
             f"&departureDate={criteria.check_out.isoformat()}"
             f"&adults={criteria.adults or 2}"
             f"&childrenAge={children_age}"
-            f"&languagecode={language}"
-            f"&currencyCode={currency_code}"
+            f"&languagecode=vi"
+            f"&currencyCode=VND"
         )
     
     return recommendation
