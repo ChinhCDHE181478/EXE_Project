@@ -14,17 +14,6 @@ Khi chạy Docker, tạo file `.env` trong thư mục `backend` với nội dung
 # Server Configuration
 SERVER_PORT=8080
 
-# Database Configuration (External PostgreSQL)
-# Lưu ý: host.docker.internal cho phép Docker container kết nối tới localhost
-DATABASE_URL=host.docker.internal:5432
-DATABASE_NAME=vivuplan
-DATABASE_USERNAME=postgres
-DATABASE_PASSWORD=123
-
-# Redis Configuration (External)
-REDIS_HOST=host.docker.internal
-REDIS_PORT=6379
-
 # Frontend URL (Docker service name)
 FRONTEND_URL=http://frontend:3000
 
