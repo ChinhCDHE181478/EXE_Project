@@ -21,8 +21,19 @@ type ItineraryResponse = {
   notes?: string;
 };
 
+
 /** ========= Config & Constants ========= */
+// ============================================
+// LOCALHOST (HIỆN TẠI - ĐANG DÙNG)
+// ============================================
 const API_BASE = "http://localhost:4000/v1";
+
+// ============================================
+// DOCKER (UNCOMMENT KHI CHẠY DOCKER)
+// ============================================
+// const API_BASE = process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:4000/v1";
+// ============================================
+
 const LS_USER_KEY = "vivuplan_user";
 const ITI_PAGE_SIZE = 2;
 const LS_PLACE_GEO_CACHE = "vivuplan_place_geo_cache_v1";
@@ -46,7 +57,7 @@ function writePlaceCache(
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(LS_PLACE_GEO_CACHE, JSON.stringify(next));
-  } catch {}
+  } catch { }
 }
 
 function extractNameFromReason(reason?: string) {
@@ -210,13 +221,13 @@ export default function ChatboxPage() {
       prev.map((t) =>
         t.id === activeId
           ? {
-              ...t,
-              messages: [
-                ...t.messages,
-                { role: "user", content },
-                { role: "ai", content: "" },
-              ],
-            }
+            ...t,
+            messages: [
+              ...t.messages,
+              { role: "user", content },
+              { role: "ai", content: "" },
+            ],
+          }
           : t,
       ),
     );
@@ -260,13 +271,13 @@ export default function ChatboxPage() {
               p.map((t) =>
                 t.id === activeId
                   ? {
-                      ...t,
-                      messages: t.messages.map((m, i) =>
-                        i === t.messages.length - 1
-                          ? { ...m, content: lastAI }
-                          : m,
-                      ),
-                    }
+                    ...t,
+                    messages: t.messages.map((m, i) =>
+                      i === t.messages.length - 1
+                        ? { ...m, content: lastAI }
+                        : m,
+                    ),
+                  }
                   : t,
               ),
             );
@@ -467,11 +478,10 @@ export default function ChatboxPage() {
           {["LỊCH TRÌNH", "FLIGHTS", "HOTELS", "CARS"].map((t) => (
             <button
               key={t}
-              className={`px-4 py-2 rounded-lg text-[10px] font-black tracking-widest ${
-                t === "LỊCH TRÌNH"
+              className={`px-4 py-2 rounded-lg text-[10px] font-black tracking-widest ${t === "LỊCH TRÌNH"
                   ? "bg-white text-cyan-600 shadow-sm"
                   : "text-slate-400"
-              }`}
+                }`}
             >
               {t}
             </button>
@@ -516,11 +526,10 @@ export default function ChatboxPage() {
                     setActiveId(t.id);
                     setItiPage(1);
                   }}
-                  className={`w-full text-left p-4 rounded-2xl transition-all ${
-                    t.id === activeId
+                  className={`w-full text-left p-4 rounded-2xl transition-all ${t.id === activeId
                       ? "bg-white shadow-md ring-1 ring-black/5"
                       : "opacity-60 hover:opacity-100"
-                  }`}
+                    }`}
                 >
                   <div className="text-sm font-bold text-slate-700 truncate">
                     {t.title}
@@ -545,11 +554,10 @@ export default function ChatboxPage() {
                   className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-3xl px-5 py-3 text-sm font-medium ${
-                      m.role === "user"
+                    className={`max-w-[85%] rounded-3xl px-5 py-3 text-sm font-medium ${m.role === "user"
                         ? "bg-cyan-600 text-white"
                         : "bg-white text-slate-700 ring-1 ring-slate-100 shadow-sm"
-                    }`}
+                      }`}
                   >
                     {m.content.replace(/\{"type": "data-itinerary".*?\}/g, "")}
                   </div>
@@ -563,11 +571,10 @@ export default function ChatboxPage() {
             </div>
 
             <div
-              className={`absolute bottom-24 left-6 right-6 transition-all duration-500 ${
-                isFormOpen
+              className={`absolute bottom-24 left-6 right-6 transition-all duration-500 ${isFormOpen
                   ? "translate-y-0 opacity-100"
                   : "translate-y-[120%] opacity-0 pointer-events-none"
-              }`}
+                }`}
             >
               <div className="bg-white p-6 rounded-3xl shadow-2xl border border-slate-100 ring-1 ring-black/5">
                 <div className="flex justify-between mb-4 items-center">
@@ -646,11 +653,10 @@ export default function ChatboxPage() {
             <div className="p-4 bg-white border-t flex items-center gap-3">
               <button
                 onClick={() => setIsFormOpen(!isFormOpen)}
-                className={`h-12 w-12 flex items-center justify-center rounded-2xl transition-all ${
-                  isFormOpen
+                className={`h-12 w-12 flex items-center justify-center rounded-2xl transition-all ${isFormOpen
                     ? "bg-cyan-50 text-cyan-600"
                     : "bg-slate-50 text-slate-400"
-                }`}
+                  }`}
               >
                 <svg
                   className="h-6 w-6"
@@ -724,7 +730,7 @@ export default function ChatboxPage() {
                     <PlacesMapPane
                       places={places}
                       hoveredPlaceId={null}
-                      onHoverPlace={() => {}}
+                      onHoverPlace={() => { }}
                     />
                   </div>
                 )}
@@ -772,11 +778,10 @@ export default function ChatboxPage() {
                     <div className="flex justify-between items-center px-2 pt-4">
                       <button
                         onClick={() => setItiPage((p) => Math.max(1, p - 1))}
-                        className={`h-10 px-6 rounded-xl text-[10px] font-black ${
-                          itiPage > 1
+                        className={`h-10 px-6 rounded-xl text-[10px] font-black ${itiPage > 1
                             ? "bg-white"
                             : "opacity-30 pointer-events-none"
-                        }`}
+                          }`}
                       >
                         TRƯỚC
                       </button>
@@ -786,11 +791,10 @@ export default function ChatboxPage() {
                       </span>
                       <button
                         onClick={() => setItiPage((p) => p + 1)}
-                        className={`h-10 px-6 rounded-xl text-[10px] font-black ${
-                          itiPage * ITI_PAGE_SIZE < itineraryBlocks.length
+                        className={`h-10 px-6 rounded-xl text-[10px] font-black ${itiPage * ITI_PAGE_SIZE < itineraryBlocks.length
                             ? "bg-white"
                             : "opacity-30 pointer-events-none"
-                        }`}
+                          }`}
                       >
                         SAU
                       </button>

@@ -1,78 +1,140 @@
+# ============================================
+# DOCKER COMPOSE CONFIGURATION
+# ============================================
+# Cấu hình này chạy 3 services: backend, frontend, agents
+# Redis và PostgreSQL chạy EXTERNAL (trên localhost)
+#
+# QUAN TRỌNG:
+# - Backend expose port 8080 (không phải 8087)
+# - Frontend expose port 3000 (không phải 3007)
+# - Agents expose port 4000
+# - Services giao tiếp qua Docker network "app-network"
+# - Để chạy: docker-compose up --build
+# ============================================
 
 services:
-  # mysql:
-  #   image: mysql:8.0
-  #   container_name: mysql-dev
-  #   restart: "no"
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: root
-  #     MYSQL_DATABASE: mydb
-  #     MYSQL_USER: user
-  #     MYSQL_PASSWORD: pass
-  #   ports:
-  #     - "3307:3307"
-  #   volumes:
-  #     - ./backend/mysql_data:/var/lib/mysql
-  #     - ./backend/init:/docker-entrypoint-initdb.d
-  #   networks:
-  #     - app-network
-
-  # phpmyadmin:
-  #   image: phpmyadmin/phpmyadmin:latest
-  #   container_name: phpmyadmin-dev
-  #   restart: "no"
-  #   environment:
-  #     PMA_HOST: mysql      # trỏ vào service mysql
-  #     PMA_USER: user
-  #     PMA_PASSWORD: pass
-  #   ports:
-  #     - "8081:80"          # mở phpMyAdmin ở http://localhost:8081
-  #   depends_on:
-  #     - mysql
-  #   networks:
-  #     - app-network
-
+  # ==========================================
+  # BACKEND SERVICE (Spring Boot)
+  # ==========================================
   backend:
-    image: maven:3.9.6-eclipse-temurin-21
+    build: ./backend
     container_name: backend-dev
-    working_dir: /app
-    volumes:
-      - ./backend:/app        # mount toàn bộ backend
-      - ~/.m2:/root/.m2       # cache Maven local để build nhanh hơn
-    command: ["mvn", "spring-boot:run"]
+    # DOCKER: Load environment từ file .env
+    env_file: ./backend/.env
     ports:
-      - "8087:8087"
-    # depends_on:
-    #   - mysql
+      # DOCKER: Expose 8080 để ngrok có thể forward cho PayOS webhook
+      - "8080:8080"
+      # LOCALHOST: Nếu test local bằng Maven, dùng port 8080 trực tiếp
     networks:
       - app-network
+    restart: unless-stopped
+    # Lưu ý: Không depends_on redis/postgres vì chúng chạy external
 
+  # ==========================================
+  # FRONTEND SERVICE (Next.js)
+  # ==========================================
   frontend:
     build: ./frontend
     container_name: frontend-dev
     ports:
-      - "3007:3007"
+      # DOCKER: Standardized port 3000
+      - "3000:3000"
+      # LOCALHOST: Nếu test local bằng npm run dev, dùng port 3000
+    depends_on:
+      - backend
+      - agents
+    networks:
+      - app-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     restart: unless-stopped
+    # Environment variables được set trong Dockerfile hoặc .env.local
+
+  # ==========================================
+  # AGENTS SERVICE (FastAPI) - MỚI
+  # ==========================================
+  agents:
+    build: ./agents
+    container_name: agents-dev
+    # DOCKER: Load environment từ file .env (đã thêm Docker config)
+    # Lưu ý: Trong .env phải uncomment các dòng Docker và comment dòng localhost
+    env_file: ./agents/.env
+    ports:
+      - "4000:4000"
     depends_on:
       - backend
     networks:
       - app-network
-    volumes:
-      - ./frontend:/app         
-      - /app/node_modules 
-
-  redis:
-    image: redis:8.2.1-alpine
-    container_name: redis-dev
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./redis_data:/data
     restart: unless-stopped
-    networks:
-      - app-network
+    # Lưu ý: agents connect tới backend qua http://backend:8080/api/v1
 
+  # ==========================================
+  # REDIS (EXTERNAL - Không build trong Docker)
+  # ==========================================
+  # Redis chạy riêng trên localhost
+  # Backend và Agents connect qua: host.docker.internal:6379
+  # 
+  # Để chạy Redis trên localhost:
+  # - Windows: Download từ https://github.com/microsoftarchive/redis/releases
+  # - Mac: brew install redis && redis-server
+  # - Linux: sudo apt-get install redis-server
+  #
+  # Kiểm tra: redis-cli ping
+  # ==========================================
+
+  # ==========================================
+  # POSTGRESQL (EXTERNAL - Không build trong Docker)
+  # ==========================================
+  # PostgreSQL chạy riêng trên localhost
+  # Backend và Agents connect qua: host.docker.internal:5432
+  #
+  # Để chạy PostgreSQL trên localhost:
+  # - Download từ https://www.postgresql.org/download/
+  # - Tạo database: CREATE DATABASE vivuplan;
+  #
+  # Kiểm tra: psql -U postgres -h localhost -p 5432
+  # ==========================================
 
 networks:
   app-network:
     driver: bridge
+
+# ============================================
+# HƯỚNG DẪN SỬ DỤNG
+# ============================================
+#
+# 1. CÀI ĐẶT TRƯỚC KHI CHẠY:
+#    - PostgreSQL chạy trên localhost:5432
+#    - Redis chạy trên localhost:6379
+#    - Đã tạo file .env trong backend/ (xem README-DOCKER.md)
+#    - Đã uncomment các dòng DOCKER trong agents/.env
+#    - Đã uncomment dòng Docker trong frontend/src/app/(chat)/chatbox/page.tsx
+#
+# 2. BUILD VÀ CHẠY:
+#    docker-compose up --build
+#
+# 3. SETUP PAYOS WEBHOOK (nếu cần test payment):
+#    a. Chạy ngrok: ngrok http 8080
+#    b. Copy ngrok URL (vd: https://abc123.ngrok-free.app)
+#    c. Update backend/.env: PAYOS_WEBHOOK_URL=https://abc123.ngrok-free.app/payment/payos-webhook
+#    d. Restart backend: docker-compose restart backend
+#    e. Check logs: docker-compose logs backend | grep "webhook"
+#
+# 4. TRUY CẬP SERVICES:
+#    - Frontend: http://localhost:3000
+#    - Backend API: http://localhost:8080/api/v1
+#    - Agents API: http://localhost:4000
+#    - Backend Swagger: http://localhost:8080/api/v1/swagger-ui.html
+#
+# 5. QUAY VỀ LOCALHOST (không Docker):
+#    a. Trong agents/.env: Comment các dòng DOCKER, uncomment dòng LOCALHOST
+#    b. Trong frontend chatbox/page.tsx: Comment dòng DOCKER, uncomment LOCALHOST
+#    c. Trong backend application.yml: Giữ "port: 8080" (không dùng env var)
+#    d. Chạy trực tiếp: mvn spring-boot:run, npm run dev, python main.py
+#
+# 6. STOP VÀ XÓA:
+#    docker-compose down
+#    docker-compose down -v  # Xóa cả volumes (nếu có)
+#
+# ============================================
