@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 public class SubscriptionStatusResponse {
 
     private Boolean isActive;
+    private LocalDateTime now;
     private LocalDateTime expiredAt;
     private Long remainingDays;
 }

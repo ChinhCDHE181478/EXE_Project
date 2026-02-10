@@ -5,18 +5,21 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
  * Repository cho Payment
  */
 @Repository
-public interface PaymentRepository extends JpaRepository<Payment, Long> {
+public interface PaymentRepository extends JpaRepository<Payment, Long>, JpaSpecificationExecutor<Payment> {
 
     /**
      * Tìm payment theo orderCode
@@ -42,4 +45,17 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
      * Sort theo createAt desc
      */
     Page<Payment> findByUserIdOrderByCreateAtDesc(Long userId, Pageable pageable);
+
+    @Query("SELECT SUM(p.amount) FROM Payment p WHERE p.status = exe.project.backend.enums.PaymentStatus.SUCCESS")
+    Long sumTotalRevenue();
+
+    @Query("SELECT SUM(p.amount) FROM Payment p WHERE p.status = exe.project.backend.enums.PaymentStatus.SUCCESS AND p.createAt BETWEEN :start AND :end")
+    Long sumRevenueBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT p.subscriptionPackage.displayName, SUM(p.amount) " +
+            "FROM Payment p " +
+            "WHERE p.status = exe.project.backend.enums.PaymentStatus.SUCCESS AND p.createAt BETWEEN :start AND :end " +
+            "GROUP BY p.subscriptionPackage.displayName")
+    List<Object[]> sumRevenueByPackageBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
 }

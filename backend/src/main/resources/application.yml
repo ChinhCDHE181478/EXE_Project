@@ -5,7 +5,7 @@ spring:
   datasource:
     username: ${DATABASE_USERNAME}
     password: ${DATABASE_PASSWORD}
-    url: jdbc:postgresql://${DATABASE_URL}/${DATABASE_NAME}?sslmode=require
+    url: jdbc:postgresql://${DATABASE_URL}/${DATABASE_NAME}    #?sslmode=require
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -132,3 +132,6 @@ payos:
     url: "${PAYOS_RETURN_URL}"
   cancel:
     url: "${PAYOS_CANCEL_URL}"
+
+admin:
+  email: "${ADMIN_EMAIL}"

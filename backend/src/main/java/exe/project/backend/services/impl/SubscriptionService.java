@@ -35,17 +35,23 @@ public class SubscriptionService implements ISubscriptionService {
             // Chưa có subscription
             return SubscriptionStatusResponse.builder()
                     .isActive(false)
+                    .now(now)
                     .expiredAt(null)
                     .remainingDays(0L)
                     .build();
         }
 
         boolean isActive = subscription.getExpiredAt().isAfter(now);
-        long remainingDays = isActive ? ChronoUnit.DAYS.between(now, subscription.getExpiredAt()) : 0;
+        long seconds = ChronoUnit.SECONDS.between(now, subscription.getExpiredAt());
+
+        long remainingDays = seconds > 0
+                ? (long) Math.ceil(seconds / 86400.0)
+                : 0;
 
         return SubscriptionStatusResponse.builder()
                 .isActive(isActive)
                 .expiredAt(subscription.getExpiredAt())
+                .now(now)
                 .remainingDays(remainingDays)
                 .build();
     }
