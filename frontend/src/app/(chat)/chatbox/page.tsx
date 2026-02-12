@@ -629,13 +629,13 @@ export default function VivuplanPremiumApp() {
 
         <div className="p-5 space-y-3">
           <button
-            onClick={() => router.push("/login")}
+            onClick={() => router.push("/pages/login?next=/")}
             className="w-full py-3 rounded-2xl bg-[#0056D2] text-white font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-700 active:scale-[0.99] transition"
           >
             <LogIn size={16} /> Đăng nhập
           </button>
 
-          <button
+          {/* <button
             onClick={() => {
               setAllowGuestDemo(true);
               setShowLoginGate(false);
@@ -645,7 +645,7 @@ export default function VivuplanPremiumApp() {
             className="w-full py-3 rounded-2xl bg-slate-100 text-slate-700 font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-200 active:scale-[0.99] transition"
           >
             <Sparkles size={16} /> Dùng thử 1 lần (Demo)
-          </button>
+          </button> */}
 
           <p className="text-[10px] text-slate-400 leading-relaxed">
             * Demo cho phép tạo 1 lịch trình. Sau đó cần mua gói hoặc đăng nhập để xem đầy đủ.
@@ -834,7 +834,7 @@ export default function VivuplanPremiumApp() {
             <PlusCircle size={16} /> Chuyến đi mới
           </button>
 
-          <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+          {/* <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tài khoản</p>
             <p className="text-[11px] font-bold text-slate-700 mt-1">
               {isAuthed ? `Đã đăng nhập (uid: ${resolvedUserId ?? "..."})` : allowGuestDemo ? "Demo (khách)" : "Chưa đăng nhập"}
@@ -842,7 +842,7 @@ export default function VivuplanPremiumApp() {
             <p className="text-[10px] text-slate-500 mt-1">
               {subStatus.active ? `Gói: ${subStatus.packageCode || "Premium"}` : "Gói: Chưa kích hoạt"}
             </p>
-          </div>
+          </div> */}
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-0.5 custom-scrollbar">

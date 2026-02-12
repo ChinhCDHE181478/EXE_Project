@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authService } from "@/lib/services/auth";
 
 function SocialBtn({
@@ -22,6 +23,13 @@ function SocialBtn({
 }
 
 export default function LoginPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const nextParam = searchParams.get("next");
+  const nextPath =
+    nextParam && nextParam.startsWith("/") ? nextParam : "/";
+
   const [step, setStep] = useState<"email" | "otp">("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -69,21 +77,27 @@ export default function LoginPage() {
   ) => {
     const name = displayName || emailValue.split("@")[0] || emailValue;
     let resolvedId: string | number | null = userId ?? null;
+
     try {
       const raw = localStorage.getItem("vivuplan_user");
       if (raw) {
         const parsed = JSON.parse(raw);
-        resolvedId = resolvedId ?? parsed?.id ?? parsed?.userId ?? parsed?.user_id ?? null;
+        resolvedId =
+          resolvedId ??
+          parsed?.id ??
+          parsed?.userId ??
+          parsed?.user_id ??
+          null;
       }
     } catch {}
 
-    const sessionData: Record<string, any> = { displayName: name, email: emailValue };
+    const sessionData: Record<string, any> = {
+      displayName: name,
+      email: emailValue,
+    };
     if (resolvedId != null) sessionData.id = resolvedId;
 
-    localStorage.setItem(
-      "vivuplan_user",
-      JSON.stringify(sessionData)
-    );
+    localStorage.setItem("vivuplan_user", JSON.stringify(sessionData));
   };
 
   /**
@@ -115,10 +129,13 @@ export default function LoginPage() {
       const data = await authService.otpLoginVerify({ email, otp });
 
       const displayName = data?.user?.displayName || data?.user?.name;
-      const userId = data?.user?.id ?? data?.user?.userId ?? data?.user?.user_id ?? null;
+      const userId =
+        data?.user?.id ?? data?.user?.userId ?? data?.user?.user_id ?? null;
+
       saveUserForHeader(email, displayName, userId);
 
-      window.location.href = "/";
+      // ✅ Redirect về đúng nơi gọi login
+      router.replace(nextPath);
     } catch (e: any) {
       setErr(e?.message || "OTP không đúng hoặc đã hết hạn");
     } finally {
@@ -207,12 +224,14 @@ export default function LoginPage() {
                   </svg>
                   Google
                 </SocialBtn>
+
                 <SocialBtn onClick={() => alert("Apple login (demo)")}>
                   <svg viewBox="0 0 24 24" className="h-5 w-5 fill-black">
                     <path d="M16.365 1.43c0 1.14-.456 2.197-1.293 3.01-.833.81-2.01 1.39-3.22 1.31-.14-1.09.39-2.26 1.22-3.08.83-.82 2.29-1.41 3.29-1.24zM21 17.08c-.39.9-.86 1.78-1.43 2.61-.77 1.1-1.4 1.86-2.26 1.86-.8 0-1.34-.53-2.33-.53-.99 0-1.59.52-2.38.52-.96 0-1.68-.86-2.44-1.94C8 18.24 6.9 15.71 6.9 13.36c0-2.45 1.43-3.74 2.84-3.74 1.01 0 1.74.6 2.31.6.55 0 1.52-.62 2.64-.62.45 0 1.98.05 2.87 1.5-.08.05-1.74 1.02-1.72 3.05.02 2.44 2.13 3.25 2.17 3.27z" />
                   </svg>
                   Apple
                 </SocialBtn>
+
                 <SocialBtn onClick={() => alert("Facebook login (demo)")}>
                   <svg viewBox="0 0 24 24" className="h-5 w-5 fill-[#1877F2]">
                     <path d="M22 12.07C22 6.52 17.52 2 12 2S2 6.52 2 12.07c0 5.02 3.66 9.18 8.44 9.93v-7.02H7.9v-2.9h2.54V9.41c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.23.2 2.23.2v2.45h-1.26c-1.24 0-1.62.77-1.62 1.55v1.86h2.76l-.44 2.9h-2.32V22c4.78-.75 8.44-4.91 8.44-9.93z" />
