@@ -62,11 +62,27 @@ export default function LoginPage() {
    * Store minimal user info for UI header display.
    * (Tokens are stored via tokenStore inside authService)
    */
-  const saveUserForHeader = (emailValue: string, displayName?: string) => {
+  const saveUserForHeader = (
+    emailValue: string,
+    displayName?: string,
+    userId?: string | number | null
+  ) => {
     const name = displayName || emailValue.split("@")[0] || emailValue;
+    let resolvedId: string | number | null = userId ?? null;
+    try {
+      const raw = localStorage.getItem("vivuplan_user");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        resolvedId = resolvedId ?? parsed?.id ?? parsed?.userId ?? parsed?.user_id ?? null;
+      }
+    } catch {}
+
+    const sessionData: Record<string, any> = { displayName: name, email: emailValue };
+    if (resolvedId != null) sessionData.id = resolvedId;
+
     localStorage.setItem(
       "vivuplan_user",
-      JSON.stringify({ displayName: name, email: emailValue })
+      JSON.stringify(sessionData)
     );
   };
 
@@ -99,7 +115,8 @@ export default function LoginPage() {
       const data = await authService.otpLoginVerify({ email, otp });
 
       const displayName = data?.user?.displayName || data?.user?.name;
-      saveUserForHeader(email, displayName);
+      const userId = data?.user?.id ?? data?.user?.userId ?? data?.user?.user_id ?? null;
+      saveUserForHeader(email, displayName, userId);
 
       window.location.href = "/";
     } catch (e: any) {

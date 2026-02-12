@@ -65,7 +65,39 @@ function decodeJwtPayload(token: string) {
   try {
     const parts = token.split(".");
     if (parts.length < 2) return null;
-    return JSON.parse(atob(parts[1]));
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    return JSON.parse(atob(padded));
+  } catch {
+    return null;
+  }
+}
+
+function normalizePositiveId(value: any): string | null {
+  if (value == null) return null;
+  const n = Number(value);
+  if (Number.isFinite(n) && n > 0) return String(Math.trunc(n));
+  return null;
+}
+
+function extractUserIdFromPayload(payload: any): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const direct = payload.user_id ?? payload.userId ?? payload.id ?? payload.uid ?? payload.sub ?? null;
+  const nested = payload.user?.id ?? payload.user?.userId ?? payload.user?.user_id ?? null;
+  return normalizePositiveId(direct) ?? normalizePositiveId(nested);
+}
+
+function getStoredUserId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("vivuplan_user");
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return (
+      normalizePositiveId(parsed?.id) ??
+      normalizePositiveId(parsed?.userId) ??
+      normalizePositiveId(parsed?.user_id)
+    );
   } catch {
     return null;
   }
@@ -145,23 +177,21 @@ export default function VivuplanPremiumApp() {
    * - Nếu guest demo: dùng "1" (hoặc user demo) để backend khỏi 500 (NHƯNG purchase KHÔNG DÙNG CÁI NÀY)
    */
   const getConversationUserId = () => {
-    if (typeof window === "undefined") return "1";
+    if (typeof window === "undefined") return null;
 
     const token = getTokenFromStorage();
     if (token) {
       const payload = decodeJwtPayload(token);
-      const uid =
-        payload?.user_id ??
-        payload?.id ??
-        payload?.uid ??
-        payload?.user?.id ??
-        null;
-
-      if (uid != null && Number(uid) > 0) return String(uid);
+      const uidFromToken = extractUserIdFromPayload(payload);
+      if (uidFromToken) return uidFromToken;
     }
 
+    const uidFromStorage = getStoredUserId();
+    if (uidFromStorage) return uidFromStorage;
+
     // Guest demo: dùng 1 để tránh backend crash. (Chỉ để tạo demo 1 lần)
-    return "1";
+    if (!token && allowGuestDemo) return "1";
+    return null;
   };
 
   /** Purchase / status bắt buộc phải có UID thật đã chốt được */
@@ -223,6 +253,11 @@ export default function VivuplanPremiumApp() {
       }
 
       const uidForHistory = getConversationUserId();
+      if (!uidForHistory) {
+        setResolvedUserId(null);
+        setChatHistory([]);
+        return;
+      }
       const { res, json, text } = await fetchJsonSafe(
         `${API_BASE}/conversation/history/${uidForHistory}?page=1&page_size=30`
       );
@@ -460,6 +495,15 @@ export default function VivuplanPremiumApp() {
 
     try {
       const uid = getConversationUserId(); // user id dùng cho conversation
+      if (!uid) {
+        setIsAuthed(false);
+        setShowLoginGate(true);
+        setMessages((prev) => [
+          ...prev,
+          { role: "ai", content: "Khong xac dinh duoc tai khoan. Vui long dang nhap lai." },
+        ]);
+        return;
+      }
 
       const { res, json, text: raw } = await fetchJsonSafe(`${API_BASE}/conversation/response`, {
         method: "POST",
@@ -746,12 +790,12 @@ export default function VivuplanPremiumApp() {
                 Mua gói
               </button>
             )}
-            <button
+            {/* <button
               onClick={() => setShowPaywall(true)}
               className="px-5 py-3 rounded-2xl bg-slate-100 text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200"
             >
               Xem gói
-            </button>
+            </button> */}
           </div>
         </div>
       </div>

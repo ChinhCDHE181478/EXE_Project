@@ -1,4 +1,4 @@
-import { apiFetch, tokenStore } from "../apiClient";
+﻿import { apiFetch, tokenStore } from "../apiClient";
 
 /**
  * Standard API envelope used by backend
@@ -20,6 +20,10 @@ type BaseJsonResponse<T = any> = {
  * from POST /auth/otp-login/verify
  */
 type LoginResponse = {
+  id?: string | number;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
   accessToken: string;
   refreshToken: string;
   user?: any;
@@ -53,7 +57,6 @@ export const authService = {
       { auth: false }
     );
 
-    // Normalize status check (depends on backend status type)
     if (!res || String(res.status).toUpperCase() !== "SUCCESS") {
       throw new Error(res?.message || "Unable to send OTP");
     }
@@ -65,46 +68,63 @@ export const authService = {
    * Verify OTP and retrieve tokens
    * Backend: POST /auth/otp-login/verify
    */
-  // src/services/authService.ts
+  async otpLoginVerify(body: { email: string; otp: string }) {
+    const res = await apiFetch<BaseJsonResponse<LoginResponse>>(
+      "/auth/otp-login/verify",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          email: body.email.trim(),
+          otp: body.otp.trim(),
+        }),
+      },
+      { auth: false }
+    );
 
-async otpLoginVerify(body: { email: string; otp: string }) {
-  const res = await apiFetch<BaseJsonResponse<LoginResponse>>(
-    "/auth/otp-login/verify",
-    {
-      method: "POST",
-      body: JSON.stringify({
-        email: body.email.trim(),
-        otp: body.otp.trim(),
-      }),
-    },
-    { auth: false }
-  );
+    if (!res || String(res.status).toUpperCase() !== "SUCCESS") {
+      throw new Error(res?.message || "OTP verification failed");
+    }
 
-  if (!res || String(res.status).toUpperCase() !== "SUCCESS") {
-    throw new Error(res?.message || "OTP verification failed");
-  }
+    const data = res.result;
 
-  const data = res.result;
+    if (!data?.accessToken || !data?.refreshToken) {
+      throw new Error("Token payload missing in login response");
+    }
 
-  if (!data?.accessToken || !data?.refreshToken) {
-    throw new Error("Token payload missing in login response");
-  }
+    tokenStore.setTokens(data.accessToken, data.refreshToken);
 
-  // 1. Lưu Token để apiClient sử dụng cho các request sau
-  tokenStore.setTokens(data.accessToken, data.refreshToken);
+    const backendUser = data.user ?? {};
+    const resolvedId =
+      backendUser.id ??
+      backendUser.userId ??
+      backendUser.user_id ??
+      data.id ??
+      null;
+    const resolvedEmail = backendUser.email ?? data.email ?? body.email?.trim() ?? "";
+    const fullName = [data.firstName, data.lastName].filter(Boolean).join(" ").trim();
+    const resolvedDisplayName =
+      backendUser.displayName ??
+      (fullName || (resolvedEmail ? resolvedEmail.split("@")[0] : "Thanh vien VivuPlan"));
 
-  // 2. Lưu thông tin User (bao gồm ID) để Header và các trang khác sử dụng
-  if (typeof window !== "undefined" && data.user) {
-    const userSession = {
-      id: data.user.id, // Lưu ID vào đây
-      displayName: data.user.displayName || "Thành viên VivuPlan",
-      email: data.user.email,
+    if (typeof window !== "undefined") {
+      const userSession = {
+        id: resolvedId,
+        displayName: resolvedDisplayName,
+        email: resolvedEmail,
+      };
+      localStorage.setItem("vivuplan_user", JSON.stringify(userSession));
+    }
+
+    return {
+      ...data,
+      user: {
+        ...backendUser,
+        id: resolvedId,
+        email: resolvedEmail,
+        displayName: resolvedDisplayName,
+      },
     };
-    localStorage.setItem("vivuplan_user", JSON.stringify(userSession));
-  }
-
-  return data;
-},
+  },
 
   /**
    * Logout
@@ -116,7 +136,6 @@ async otpLoginVerify(body: { email: string; otp: string }) {
       await apiFetch<void>("/auth/logout", { method: "POST" });
     } finally {
       tokenStore.clearTokens();
-      // Optionally clear cached user info
       if (typeof window !== "undefined") {
         localStorage.removeItem("vivuplan_user");
       }
