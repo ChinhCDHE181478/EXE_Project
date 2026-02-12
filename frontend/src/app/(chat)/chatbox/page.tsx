@@ -560,6 +560,23 @@ export default function VivuplanPremiumApp() {
     }
   };
 
+  const resetToLoggedOutState = () => {
+    setIsAuthed(false);
+    setResolvedUserId(null);
+    setAllowGuestDemo(false);
+    setShowLoginGate(true);
+    setShowPaywall(false);
+    setChatHistory([]);
+    setMessages([]);
+    setItineraryData(null);
+    setHotelData(null);
+    setInputText("");
+    setSelectedDayIdx(null);
+    setViewMode("chat");
+    setSubStatus({ active: false, packageCode: null });
+    setActiveId(newSessionId());
+  };
+
   /** ====== INIT ====== */
   useEffect(() => setMounted(true), []);
 
@@ -572,15 +589,7 @@ export default function VivuplanPremiumApp() {
 
     const token = getTokenFromStorage();
     if (!token) {
-      // chưa login
-      setIsAuthed(false);
-      setResolvedUserId(null);
-      setShowLoginGate(true);
-
-      // guest: không history
-      setChatHistory([]);
-      setActiveId(newSessionId());
-      setSubStatus({ active: false, packageCode: null });
+      resetToLoggedOutState();
       return;
     }
 
@@ -592,6 +601,25 @@ export default function VivuplanPremiumApp() {
 
     // load history sẽ chốt resolvedUserId
     loadHistory();
+  }, [mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const onLogout = () => resetToLoggedOutState();
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key) return;
+      const watchedKeys = ["access_token", "refresh_token", "token", "vivuplan_user"];
+      if (!watchedKeys.includes(e.key)) return;
+      if (!getTokenFromStorage()) onLogout();
+    };
+
+    window.addEventListener("logout", onLogout);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("logout", onLogout);
+      window.removeEventListener("storage", onStorage);
+    };
   }, [mounted]);
 
   // Khi đã chốt uid => check subscription
@@ -834,7 +862,7 @@ export default function VivuplanPremiumApp() {
             <PlusCircle size={16} /> Chuyến đi mới
           </button>
 
-          {/* <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+          <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tài khoản</p>
             <p className="text-[11px] font-bold text-slate-700 mt-1">
               {isAuthed ? `Đã đăng nhập (uid: ${resolvedUserId ?? "..."})` : allowGuestDemo ? "Demo (khách)" : "Chưa đăng nhập"}
@@ -842,7 +870,7 @@ export default function VivuplanPremiumApp() {
             <p className="text-[10px] text-slate-500 mt-1">
               {subStatus.active ? `Gói: ${subStatus.packageCode || "Premium"}` : "Gói: Chưa kích hoạt"}
             </p>
-          </div> */}
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-0.5 custom-scrollbar">
@@ -1327,3 +1355,5 @@ export default function VivuplanPremiumApp() {
     </div>
   );
 }
+
+

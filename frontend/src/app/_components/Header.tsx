@@ -42,11 +42,28 @@ export default function Header() {
     }
   }, [pathname]);
 
-  const logout = () => {
+  const clearClientSession = () => {
     localStorage.removeItem("vivuplan_user");
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("token");
+    sessionStorage.removeItem("vivu_draft");
+  };
+
+  const logout = async () => {
+    try {
+      await fetch("/auth/logout", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      });
+    } catch {}
+
+    clearClientSession();
     setUser(null);
     setUserOpen(false);
     setOpen(false);
+    window.dispatchEvent(new Event("logout"));
     window.location.href = "/";
   };
 

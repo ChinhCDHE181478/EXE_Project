@@ -77,11 +77,18 @@ const AuthProvider: React.FC<IAuthProviderProps> = ({ children }) => {
   };
 
   const logout = async () => {
-    const res = await fetch("/api/auth/logout", {
+    const res = await fetch("/auth/logout", {
       method: "POST",
       credentials: "include",
-      cache: "no-cache",
+      cache: "no-store",
     });
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("token");
+      localStorage.removeItem("vivuplan_user");
+      window.dispatchEvent(new Event("logout"));
+    }
     if (!res.ok) {
       setIsAuthenticated(false);
       router.push("/");
