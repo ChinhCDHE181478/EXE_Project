@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 
 export type UiPlace = {
   id: string;
@@ -18,48 +18,74 @@ declare global {
   var L: any;
 }
 
-const VIETNAM_CENTER = { lat: 16.047079, lng: 108.206235 }; // Đà Nẵng / Trung tâm VN
+const VIETNAM_CENTER = { lat: 16.047079, lng: 108.206235 };
 
 function escapeHtml(s: string) {
-  return String(s ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+  if (!s) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
+const ICONS = {
+  restaurant: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/>
+      <path d="M7 2v20"/>
+      <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/>
+    </svg>
+  `,
+  attraction: `
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  `
+};
 
-/** * Marker Style: Thiết kế theo tone màu Vivuplan 
- * Xanh dương đậm (#0056D2) khi active
- */
 function markerHtml(p: UiPlace, active: boolean) {
-  const bg = active ? "#0056D2" : "#ffffff";
-  const fg = active ? "#ffffff" : "#0f172a";
-  const border = active ? "#ffffff" : "#0056D2";
-  const label = p.kind === "restaurant" ? "Ăn" : "Chơi";
-  
+  const baseColor = p.kind === "restaurant" ? "#F97316" : "#0056D2";
+  const bg = active ? baseColor : "#ffffff";
+  const fg = active ? "#ffffff" : baseColor;
+  const border = active ? "#ffffff" : baseColor;
+  const iconSvg = p.kind === "restaurant" ? ICONS.restaurant : ICONS.attraction;
+  const zIndex = active ? 9999 : 100;
+
   return `
     <div style="
-      display:inline-flex; align-items:center; gap:8px;
-      padding:6px 12px; border-radius:999px;
-      background:${bg}; color:${fg};
-      box-shadow: 0 10px 25px -5px rgba(0, 86, 210, 0.3);
+      position: relative;
+      z-index: ${zIndex};
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 10px 6px 6px; 
+      border-radius: 20px;
+      background: ${bg}; 
+      color: ${fg};
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
       border: 2px solid ${border};
-      font-family: system-ui, -apple-system, sans-serif;
-      font-weight: 800; font-size: 13px;
-      white-space: nowrap;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: sans-serif; font-weight: 700; font-size: 12px;
+      white-space: nowrap; 
+      transform: ${active ? "scale(1.15)" : "scale(1)"};
+      transition: all 0.2s ease;
     ">
       <span style="
-        display:inline-flex; width:18px; height:18px; border-radius:999px;
-        align-items:center; justify-content:center;
-        background:${active ? "rgba(255,255,255,0.2)" : "rgba(0,86,210,0.1)"};
-        color: ${active ? "#fff" : "#0056D2"};
-        font-size:10px;
-      ">${label}</span>
-      <span style="max-width:180px; overflow:hidden; text-overflow:ellipsis;">
+        display: flex; align-items: center; justify-content: center;
+        width: 20px; height: 20px;
+        background: ${active ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.05)"};
+        border-radius: 50%;
+      ">
+        ${iconSvg}
+      </span>
+      
+      <span style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; padding-right: 4px;">
         ${escapeHtml(p.name)}
       </span>
+
+      ${active ? `<div style="
+        position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg);
+        width: 10px; height: 10px; background: ${bg}; border-bottom: 2px solid ${border}; border-right: 2px solid ${border}; z-index: -1;
+      "></div>` : ""}
     </div>
   `;
 }
@@ -79,16 +105,15 @@ export default function PlacesMapPane({
   const mapRef = useRef<any>(null);
   const markersRef = useRef<Map<string, any>>(new Map());
 
-  // Load Leaflet CDN
+  // 1. Load Leaflet CSS & JS
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
-      if (!document.querySelector('link[data-leaflet="1"]')) {
+    const loadLeaflet = async () => {
+      if (!document.querySelector('link[href*="leaflet.css"]')) {
         const link = document.createElement("link");
         link.rel = "stylesheet";
         link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-        link.setAttribute("data-leaflet", "1");
         document.head.appendChild(link);
       }
 
@@ -107,38 +132,46 @@ export default function PlacesMapPane({
 
       if (!mapRef.current && mapEl.current) {
         const L = globalThis.L;
-
-        // Khởi tạo map không có zoomControl để giao diện sạch hơn
+        
         mapRef.current = L.map(mapEl.current, {
           zoomControl: false,
           attributionControl: false,
         }).setView([VIETNAM_CENTER.lat, VIETNAM_CENTER.lng], 6);
 
-        // Tile layer sang trọng (CartoDB Positron - Sáng và Minimalist)
-        L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-          maxZoom: 19,
+        // Google Maps Layer
+        L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+          maxZoom: 20,
+          attribution: 'Google Maps'
         }).addTo(mapRef.current);
 
-        // Thêm lại zoomControl vào góc phải dưới cho gọn
-        L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
+        L.control.zoom({ position: "bottomright" }).addTo(mapRef.current);
+        
+        // --- QUAN TRỌNG: Fix lỗi map không full ---
+        setTimeout(() => {
+           mapRef.current.invalidateSize();
+        }, 100);
       }
     };
 
-    load().catch((e) => console.error(e));
+    loadLeaflet().catch((e) => console.error(e));
+
     return () => { cancelled = true; };
   }, []);
 
-  // Cập nhật Markers và Fit Bounds (Tự động căn chỉnh nhìn rõ toàn bộ điểm)
+  // 2. Vẽ Markers
   useEffect(() => {
     if (!mapRef.current || !globalThis.L) return;
     const L = globalThis.L;
 
-    // Xóa markers cũ
+    // --- QUAN TRỌNG: Fix lỗi map không full khi data đổi ---
+    setTimeout(() => {
+        mapRef.current.invalidateSize();
+    }, 200);
+
     markersRef.current.forEach((m) => m.remove());
     markersRef.current.clear();
 
     const validPlaces = places.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng));
-    
     if (validPlaces.length === 0) return;
 
     const group = L.featureGroup();
@@ -148,58 +181,78 @@ export default function PlacesMapPane({
         className: "places-div-icon",
         html: markerHtml(p, p.place_id === hoveredPlaceId),
         iconSize: [0, 0],
-        iconAnchor: [0, 0],
+        iconAnchor: [15, 20], 
       });
 
       const marker = L.marker([Number(p.lat), Number(p.lng)], { icon }).addTo(mapRef.current);
-      
-      marker.on("mouseover", () => onHoverPlace?.(p.place_id));
-      marker.on("mouseout", () => onHoverPlace?.(null));
+
+      marker.on("mouseover", () => {
+        onHoverPlace?.(p.place_id);
+        marker.setZIndexOffset(9999);
+      });
+      marker.on("mouseout", () => {
+        onHoverPlace?.(null);
+        marker.setZIndexOffset(0);
+      });
       marker.on("click", () => onSelectPlace?.(p.place_id));
 
-      const gmaps = `https://www.google.com/maps/search/?api=1&query=Google&query_place_id=${p.place_id}`;
+      const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.name)}`;
       
       marker.bindPopup(`
-        <div style="font-family: system-ui; min-width:200px; padding: 4px;">
-          <div style="font-weight:900; color:#0056D2; font-size:14px; margin-bottom:4px;">${escapeHtml(p.name)}</div>
-          ${p.reason ? `<div style="font-size:12px; color:#64748b; line-height:1.4; margin-bottom:10px;">${escapeHtml(p.reason)}</div>` : ""}
-          <a href="${gmaps}" target="_blank" rel="noreferrer"
-             style="display:block; text-align:center; background:#0056D2; color:#fff; padding:6px; border-radius:8px; font-size:11px; font-weight:bold; text-decoration:none;">
-            Xem trên Google Maps
+        <div style="font-family: sans-serif; min-width: 200px; padding: 4px;">
+          <div style="font-weight: 800; color: #0f172a; font-size: 14px; margin-bottom: 6px;">
+            ${escapeHtml(p.name)}
+          </div>
+          ${p.reason ? `<div style="font-size: 12px; color: #64748b; line-height: 1.4; margin-bottom: 12px;">${escapeHtml(p.reason)}</div>` : ""}
+          <a href="${gmapsUrl}" target="_blank" rel="noreferrer"
+             style="
+               display: block; text-align: center;
+               background: #0056D2; color: #fff;
+               padding: 8px 0; border-radius: 8px;
+               font-size: 12px; font-weight: 700; text-decoration: none;
+               box-shadow: 0 4px 6px rgba(0, 86, 210, 0.2);
+             ">
+             Xem trên Google Maps
           </a>
         </div>
       `, {
-        className: 'vivu-popup'
+        className: 'vivu-popup',
+        closeButton: false,
+        offset: [0, -10]
       });
 
       markersRef.current.set(p.place_id, marker);
       marker.addTo(group);
     });
 
-    // Tự động căn chỉnh bản đồ để thấy hết các điểm
-    mapRef.current.fitBounds(group.getBounds(), { padding: [50, 50], maxZoom: 15 });
+    try {
+      mapRef.current.fitBounds(group.getBounds(), { padding: [50, 50], maxZoom: 16 });
+    } catch(e) { }
 
-  }, [places, onHoverPlace, onSelectPlace]);
+  }, [places, onSelectPlace]); 
 
-  // Hiệu ứng Hover Highlight
+  // 3. Xử lý Hover Highlight
   useEffect(() => {
     if (!globalThis.L || !mapRef.current) return;
     const L = globalThis.L;
 
-    places.forEach((p) => {
-      const marker = markersRef.current.get(p.place_id);
-      if (!marker) return;
+    markersRef.current.forEach((marker, placeId) => {
+      const p = places.find(place => place.place_id === placeId);
+      if (!p) return;
 
-      const isActive = p.place_id === hoveredPlaceId;
-      marker.setIcon(L.divIcon({
+      const isActive = placeId === hoveredPlaceId;
+      
+      const newIcon = L.divIcon({
         className: "places-div-icon",
         html: markerHtml(p, isActive),
         iconSize: [0, 0],
-        iconAnchor: [0, 0],
-      }));
+        iconAnchor: [15, 20],
+      });
+      
+      marker.setIcon(newIcon);
 
       if (isActive) {
-        marker.setZIndexOffset(1000); // Đưa điểm đang chọn lên trên cùng
+        marker.setZIndexOffset(9999);
       } else {
         marker.setZIndexOffset(0);
       }
@@ -207,24 +260,34 @@ export default function PlacesMapPane({
   }, [hoveredPlaceId, places]);
 
   return (
-    <div className="h-full w-full bg-slate-50 relative overflow-hidden">
-      <div ref={mapEl} className="h-full w-full z-0" />
-      
-      {/* Overlay hiệu ứng kính mờ ở các cạnh cho sang trọng */}
-      <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_80px_rgba(255,255,255,0.2)]" />
+    <div className="h-full w-full bg-slate-100 relative overflow-hidden isolate">
+        {/* --- SỬA CSS TẠI ĐÂY: Dùng absolute inset-0 để map luôn full --- */}
+      <div ref={mapEl} className="absolute inset-0 z-0" style={{ width: "100%", height: "100%" }} />
+      <div className="absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/5 to-transparent pointer-events-none z-10" />
       
       <style jsx global>{`
         .leaflet-popup-content-wrapper {
-          border-radius: 16px !important;
-          padding: 8px !important;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
+          border-radius: 12px !important;
+          padding: 0 !important;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15) !important;
+          overflow: hidden;
         }
-        .leaflet-popup-tip {
-          display: none !important;
-        }
+        .leaflet-popup-content { margin: 12px !important; }
+        .leaflet-popup-tip { background: white; }
         .places-div-icon {
           background: transparent !important;
           border: none !important;
+        }
+        /* Ẩn logo Google */
+        .gmnoprint a, .gmnoprint span, .gm-style-cc {
+            display:none;
+        }
+        .gmnoprint div {
+            background:none !important;
+        }
+        .leaflet-container {
+            width: 100% !important;
+            height: 100% !important;
         }
       `}</style>
     </div>

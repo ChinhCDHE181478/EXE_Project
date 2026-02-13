@@ -17,7 +17,7 @@ export default function Header() {
   const nav = [
     { href: "/pages/flights", label: "Chuyến bay" },
     { href: "/pages/hotels", label: "Khách sạn" },
-    { href: "/pages/cars", label: "Thuê xe" },
+    { href: "/chatbox", label: "Lên lịch trình" },
   ];
 
   const active = (href: string) =>
