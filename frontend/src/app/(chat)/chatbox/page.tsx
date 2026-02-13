@@ -692,7 +692,7 @@ export default function VivuplanPremiumApp() {
               <Lock size={20} />
             </div>
             <div>
-              <h3 className="text-lg font-black text-slate-900">Mở khoá Vivuplan Premium</h3>
+              <h3 className="text-lg font-black text-slate-900">Mở khoá Vivuplan AI</h3>
               <p className="text-[11px] text-slate-500 font-medium">
                 {subStatus.active
                   ? `Đang kích hoạt: ${subStatus.packageCode || "Premium"}`
@@ -862,7 +862,7 @@ export default function VivuplanPremiumApp() {
             <PlusCircle size={16} /> Chuyến đi mới
           </button>
 
-          <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
+          {/* <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50 p-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Tài khoản</p>
             <p className="text-[11px] font-bold text-slate-700 mt-1">
               {isAuthed ? `Đã đăng nhập (uid: ${resolvedUserId ?? "..."})` : allowGuestDemo ? "Demo (khách)" : "Chưa đăng nhập"}
@@ -870,7 +870,7 @@ export default function VivuplanPremiumApp() {
             <p className="text-[10px] text-slate-500 mt-1">
               {subStatus.active ? `Gói: ${subStatus.packageCode || "Premium"}` : "Gói: Chưa kích hoạt"}
             </p>
-          </div>
+          </div> */}
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-0.5 custom-scrollbar">
