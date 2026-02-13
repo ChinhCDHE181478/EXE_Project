@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Copy toàn bộ project (kể cả mvnw, .mvn, pom.xml, src,…)
 COPY . .
+COPY .env .env
 
 # Build jar
 RUN mvn clean package -DskipTests
@@ -13,5 +14,5 @@ FROM eclipse-temurin:21-jdk
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
-EXPOSE 8087
+EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

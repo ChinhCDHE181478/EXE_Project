@@ -78,7 +78,7 @@ public class PaymentService implements IPaymentService {
                 log.info("Payment record created with id: {}", payment.getId());
 
                 // 4. Gọi PayOS create payment link
-                String description = String.format("Mua goi subscription - %s", pkg.getCode());
+                String description = String.format("Subscription - %s", pkg.getCode());
 
                 CreatePaymentLinkResponse paymentLinkData = payOSService.createPaymentLink(
                                 orderCode,
