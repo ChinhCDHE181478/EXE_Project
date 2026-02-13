@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Utensils,
   Calendar,
@@ -118,6 +118,7 @@ async function fetchJsonSafe(url: string, options?: RequestInit) {
 
 export default function VivuplanPremiumApp() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [mounted, setMounted] = useState(false);
   const [activeId, setActiveId] = useState<string>("");
@@ -162,6 +163,8 @@ export default function VivuplanPremiumApp() {
 
   const [showPaywall, setShowPaywall] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [authBootstrapped, setAuthBootstrapped] = useState(false);
+  const autoPromptRef = useRef("");
 
   /** ====== HELPERS ====== */
   const newSessionId = () => {
@@ -364,6 +367,28 @@ export default function VivuplanPremiumApp() {
     }
   };
 
+  const openPaywallIfNeeded = async () => {
+    if (subStatus.active) {
+      setShowPaywall(false);
+      return false;
+    }
+
+    const uid = requireResolvedUid();
+    if (!uid) {
+      setShowPaywall(true);
+      return true;
+    }
+
+    const st = await fetchSubscriptionStatus();
+    if (st.active) {
+      setShowPaywall(false);
+      return false;
+    }
+
+    setShowPaywall(true);
+    return true;
+  };
+
   /** ====== API: PURCHASE (DÙNG ĐÚNG checkoutUrl) ====== */
   const purchaseSubscription = async (packageCode: string) => {
     const uid = requireResolvedUid();
@@ -482,8 +507,8 @@ export default function VivuplanPremiumApp() {
 
     // đã có kết quả mà chưa mua => paywall
     if (shouldLockContent) {
-      setShowPaywall(true);
-      return;
+      const opened = await openPaywallIfNeeded();
+      if (opened) return;
     }
 
     setMessages((prev) => [...prev, { role: "user", content: text }]);
@@ -533,7 +558,7 @@ export default function VivuplanPremiumApp() {
       await loadHistory();
 
       // nếu chưa active => sau khi tạo xong lần demo -> paywall
-      if (!subStatus.active) setShowPaywall(true);
+      if (!subStatus.active) await openPaywallIfNeeded();
     } catch (e) {
       console.error(e);
       setMessages((prev) => [...prev, { role: "ai", content: "Lỗi kết nối server." }]);
@@ -590,6 +615,7 @@ export default function VivuplanPremiumApp() {
     const token = getTokenFromStorage();
     if (!token) {
       resetToLoggedOutState();
+      setAuthBootstrapped(true);
       return;
     }
 
@@ -598,9 +624,15 @@ export default function VivuplanPremiumApp() {
     setShowLoginGate(false);
     setAllowGuestDemo(false);
     setActiveId(newSessionId());
+    const uid = getConversationUserId();
+    if (uid) {
+      const uidNum = Number(uid);
+      if (Number.isFinite(uidNum) && uidNum > 0) setResolvedUserId(uidNum);
+    }
 
     // load history sẽ chốt resolvedUserId
     loadHistory();
+    setAuthBootstrapped(true);
   }, [mounted]);
 
   useEffect(() => {
@@ -622,12 +654,30 @@ export default function VivuplanPremiumApp() {
     };
   }, [mounted]);
 
+  useEffect(() => {
+    if (!mounted || !authBootstrapped) return;
+
+    const prompt = searchParams.get("prompt")?.trim();
+    if (!prompt) return;
+    if (autoPromptRef.current === prompt) return;
+
+    autoPromptRef.current = prompt;
+    setInputText(prompt);
+    executeSend(prompt);
+    router.replace("/chatbox");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, authBootstrapped, searchParams, router]);
+
   // Khi đã chốt uid => check subscription
   useEffect(() => {
     if (!resolvedUserId) return;
     fetchSubscriptionStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedUserId]);
+
+  useEffect(() => {
+    if (subStatus.active) setShowPaywall(false);
+  }, [subStatus.active]);
 
   /** ====== MODALS ====== */
   const LoginGateModal = () => (
@@ -812,14 +862,14 @@ export default function VivuplanPremiumApp() {
               </button>
             ) : (
               <button
-                onClick={() => setShowPaywall(true)}
+                onClick={() => openPaywallIfNeeded()}
                 className="px-5 py-3 rounded-2xl bg-[#0056D2] text-white text-[10px] font-black uppercase tracking-widest hover:bg-blue-700"
               >
                 Mua gói
               </button>
             )}
             {/* <button
-              onClick={() => setShowPaywall(true)}
+              onClick={() => openPaywallIfNeeded()}
               className="px-5 py-3 rounded-2xl bg-slate-100 text-slate-700 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200"
             >
               Xem gói
@@ -836,7 +886,7 @@ export default function VivuplanPremiumApp() {
   return (
     <div className="fixed inset-0 top-[68px] w-screen h-[calc(100dvh-68px)] bg-white text-slate-900 font-sans flex overflow-hidden text-sm shadow-inner">
       {showLoginGate && <LoginGateModal />}
-      {showPaywall && <PaywallModal />}
+      {showPaywall && !subStatus.active && <PaywallModal />}
 
       {/* 1. SIDEBAR */}
       <aside
@@ -1109,7 +1159,7 @@ export default function VivuplanPremiumApp() {
                 {!subStatus.active && (
                   <div className="max-w-3xl mx-auto mt-2 text-[10px] text-slate-400 flex items-center justify-between">
                     <span>Chưa kích hoạt gói — tạo xong sẽ yêu cầu mua gói.</span>
-                    <button onClick={() => setShowPaywall(true)} className="text-[#0056D2] font-black hover:underline">
+                    <button onClick={() => openPaywallIfNeeded()} className="text-[#0056D2] font-black hover:underline">
                       Xem gói
                     </button>
                   </div>
@@ -1355,5 +1405,6 @@ export default function VivuplanPremiumApp() {
     </div>
   );
 }
+
 
 
