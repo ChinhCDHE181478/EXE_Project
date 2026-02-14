@@ -2,8 +2,8 @@
 import { useState } from "react";
 
 export default function SearchFlights({ onSearch }: { onSearch?: () => void }) {
-  const [from, setFrom] = useState("Hà Nội (HAN)");
-  const [to, setTo] = useState("TP.HCM (SGN)");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [tripType, setTripType] = useState<"round" | "oneway">("round");
 
   const swap = () => {

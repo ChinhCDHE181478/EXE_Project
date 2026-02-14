@@ -57,6 +57,18 @@ export const hotelService = {
   },
 
   /**
+   * BE: GET /hotel/search-list-destination?query=...
+   */
+  async searchListDestination(query: string) {
+    const res = await apiFetch<BaseJsonResponse<any>>(
+      `/hotel/search-list-destination?${qs({ query: query.trim() })}`,
+      { method: "GET" },
+      { auth: false }
+    );
+    return unwrap<any>(res, "Get List Destination Error");
+  },
+
+  /**
    * BE: GET /hotel/search
    * Required: destination, arrivalDate, departureDate
    * Optional: roomQty, adults, childrenAge, pageNumber, priceMin, priceMax, languagecode, currencyCode
@@ -117,7 +129,6 @@ export const hotelService = {
     hotelId: string;
     arrivalDate: string;
     departureDate: string;
-    roomQty?: string;
     adults?: string;
     childrenAge?: string;
     languagecode?: string;

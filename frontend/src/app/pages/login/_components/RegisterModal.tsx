@@ -92,12 +92,25 @@ export default function RegisterModal({
     }, 1000);
   };
 
-  const saveUserForHeader = (emailValue: string, displayName?: string) => {
+  const saveUserForHeader = (
+    emailValue: string,
+    displayName?: string,
+    userId?: string | number | null
+  ) => {
     const name = displayName || emailValue.split("@")[0] || emailValue;
-    localStorage.setItem(
-      "vivuplan_user",
-      JSON.stringify({ displayName: name, email: emailValue })
-    );
+    let resolvedId: string | number | null = userId ?? null;
+    try {
+      const raw = localStorage.getItem("vivuplan_user");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        resolvedId = resolvedId ?? parsed?.id ?? parsed?.userId ?? parsed?.user_id ?? null;
+      }
+    } catch {}
+
+    const sessionData: Record<string, any> = { displayName: name, email: emailValue };
+    if (resolvedId != null) sessionData.id = resolvedId;
+
+    localStorage.setItem("vivuplan_user", JSON.stringify(sessionData));
     return name;
   };
 
@@ -123,7 +136,8 @@ export default function RegisterModal({
 
       // lưu user/token
       const displayName = data?.user?.displayName || data?.user?.name;
-      const name = saveUserForHeader(email, displayName);
+      const userId = data?.user?.id ?? data?.user?.userId ?? data?.user?.user_id ?? null;
+      const name = saveUserForHeader(email, displayName, userId);
 
       onSuccess(name);
     } catch (e: any) {
