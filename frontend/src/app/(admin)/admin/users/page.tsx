@@ -63,16 +63,25 @@ function Card({
   children: React.ReactNode;
   right?: React.ReactNode;
 }) {
+  const showHeader = Boolean(title || desc || right);
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-base font-semibold text-slate-900">{title}</div>
-          {desc && <div className="mt-1 text-sm text-slate-500">{desc}</div>}
+      {showHeader && (
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            {title && (
+              <div className="text-base font-semibold text-slate-900">
+                {title}
+              </div>
+            )}
+            {desc && <div className="mt-1 text-sm text-slate-500">{desc}</div>}
+          </div>
+          {right}
         </div>
-        {right}
-      </div>
-      <div className="mt-4">{children}</div>
+      )}
+
+      <div className={showHeader ? "mt-4" : ""}>{children}</div>
     </div>
   );
 }
@@ -116,10 +125,28 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(0);
   const [size, setSize] = useState(10);
 
+  /**
+   * ✅ 1) FILTER INPUT (nhập liệu - KHÔNG tự lọc)
+   */
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role | "">("");
   const [isBlocked, setIsBlocked] = useState<"" | "true" | "false">("");
   const [isSubscribed, setIsSubscribed] = useState<"" | "true" | "false">("");
+
+  /**
+   * ✅ 2) APPLIED FILTER (đã áp dụng - chỉ đổi khi bấm "Áp dụng"/"Đặt lại")
+   */
+  const [applied, setApplied] = useState<{
+    email: string;
+    role: Role | "";
+    isBlocked: "" | "true" | "false";
+    isSubscribed: "" | "true" | "false";
+  }>({
+    email: "",
+    role: "",
+    isBlocked: "",
+    isSubscribed: "",
+  });
 
   const [data, setData] = useState<PageResult<User> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,14 +158,21 @@ export default function AdminUsersPage() {
   const [extType, setExtType] = useState<"DAY" | "MONTH">("DAY");
   const [extAmount, setExtAmount] = useState<string>("30");
 
+  /**
+   * ✅ Query chỉ phụ thuộc applied + page/size
+   * -> KHÔNG tự chạy khi user đang nhập filter
+   */
   const query = useMemo(() => {
     const params: Record<string, any> = { page, size };
-    if (email) params.email = email;
-    if (role) params.role = role;
-    if (isBlocked) params.isBlocked = isBlocked === "true";
-    if (isSubscribed) params.isSubscribed = isSubscribed === "true";
+
+    if (applied.email) params.email = applied.email;
+    if (applied.role) params.role = applied.role;
+    if (applied.isBlocked) params.isBlocked = applied.isBlocked === "true";
+    if (applied.isSubscribed)
+      params.isSubscribed = applied.isSubscribed === "true";
+
     return params;
-  }, [page, size, email, role, isBlocked, isSubscribed]);
+  }, [page, size, applied]);
 
   async function load() {
     try {
@@ -163,12 +197,21 @@ export default function AdminUsersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
+  function applyFilters() {
+    setApplied({ email, role, isBlocked, isSubscribed });
+    setPage(0);
+  }
+
   function resetFilters() {
+    // reset input
     setEmail("");
     setRole("");
     setIsBlocked("");
     setIsSubscribed("");
     setPage(0);
+
+    // reset applied (tự load lại list all)
+    setApplied({ email: "", role: "", isBlocked: "", isSubscribed: "" });
   }
 
   function openExtend(userId: number) {
@@ -182,13 +225,24 @@ export default function AdminUsersPage() {
     if (!targetUserId) return;
     try {
       setErr(null);
+
+      const trimmed = extAmount.trim();
+      const num = Number(trimmed);
+      if (trimmed === "" || Number.isNaN(num) || num <= 0) {
+        setErr("Số lượng không hợp lệ");
+        return;
+      }
+
       await api.post("/admin/users/subscription/extend", {
         userId: targetUserId,
         type: extType,
-        amount: Number(extAmount),
+        amount: num,
       });
+
       setOpen(false);
       setTargetUserId(null);
+      // ✅ reload lại list (tuỳ bạn muốn hay không, nhưng thường nên có)
+      await load();
     } catch (e: any) {
       setErr(e?.message || "Gia hạn thất bại");
     }
@@ -207,7 +261,6 @@ export default function AdminUsersPage() {
           </p>
         </div>
 
-        {/* ✅ mobile vẫn thấy nút */}
         <Link
           href="/admin"
           className="inline-flex w-full sm:w-auto justify-center rounded-xl bg-[#0891b2] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
@@ -216,21 +269,14 @@ export default function AdminUsersPage() {
         </Link>
       </div>
 
-      {/* Filters */}
-      <Card
-        title="Bộ lọc"
-        desc="Tìm theo email / vai trò / trạng thái."
-        right={<Pill>Chỉ giao diện</Pill>}
-      >
+      {/* ✅ Filters: BỎ "Bộ lọc" + BỎ desc + BỎ "Chỉ giao diện" */}
+      <Card title="">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <div className="space-y-1 xl:col-span-2">
             <div className="text-xs font-semibold text-slate-600">Email</div>
             <input
               value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                setPage(0);
-              }}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="VD: user@gmail.com"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0891b2]/20"
             />
@@ -240,10 +286,7 @@ export default function AdminUsersPage() {
             <div className="text-xs font-semibold text-slate-600">Vai trò</div>
             <select
               value={role}
-              onChange={(e) => {
-                setRole(e.target.value as any);
-                setPage(0);
-              }}
+              onChange={(e) => setRole(e.target.value as any)}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0891b2]/20"
             >
               <option value="">Tất cả</option>
@@ -258,10 +301,7 @@ export default function AdminUsersPage() {
             </div>
             <select
               value={isBlocked}
-              onChange={(e) => {
-                setIsBlocked(e.target.value as any);
-                setPage(0);
-              }}
+              onChange={(e) => setIsBlocked(e.target.value as any)}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
             >
               <option value="">Tất cả</option>
@@ -270,10 +310,10 @@ export default function AdminUsersPage() {
             </select>
           </div>
 
-          {/* ✅ nút luôn đủ trên mobile */}
+          {/* Buttons */}
           <div className="grid grid-cols-2 gap-2 xl:flex xl:items-end">
             <button
-              onClick={() => load()}
+              onClick={applyFilters}
               className="w-full rounded-xl bg-[#0891b2] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
             >
               Áp dụng
@@ -286,26 +326,20 @@ export default function AdminUsersPage() {
             </button>
           </div>
 
-          {/* isSubscribed UI (tuỳ backend) */}
+          {/* isSubscribed (giữ field vì bạn đang dùng param) */}
           <div className="space-y-1 xl:col-span-2">
             <div className="text-xs font-semibold text-slate-600">
-              Đang đăng ký gói (tuỳ chọn)
+              Đang đăng ký gói
             </div>
             <select
               value={isSubscribed}
-              onChange={(e) => {
-                setIsSubscribed(e.target.value as any);
-                setPage(0);
-              }}
+              onChange={(e) => setIsSubscribed(e.target.value as any)}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
             >
               <option value="">Tất cả</option>
               <option value="true">Đang đăng ký</option>
               <option value="false">Chưa đăng ký</option>
             </select>
-            <div className="text-xs text-slate-400">
-              * Backend có thể chưa hỗ trợ đầy đủ bộ lọc này.
-            </div>
           </div>
         </div>
       </Card>
@@ -339,7 +373,7 @@ export default function AdminUsersPage() {
           </div>
         }
       >
-        {/* ✅ MOBILE LIST VIEW */}
+        {/* MOBILE LIST VIEW */}
         <div className="grid gap-3 md:hidden">
           {loading && (
             <div className="rounded-xl border border-slate-200 bg-white p-4 text-slate-500">
@@ -359,31 +393,30 @@ export default function AdminUsersPage() {
                 key={u.id}
                 className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-semibold text-slate-900">#{u.id}</div>
-                    <div className="mt-1 text-sm text-slate-800 break-all">
-                      {u.email}
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
-                        {roleLabel[u.role]}
+                <div className="min-w-0">
+                  <div className="font-semibold text-slate-900">#{u.id}</div>
+                  <div className="mt-1 text-sm text-slate-800 break-all">
+                    {u.email}
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                      {roleLabel[u.role]}
+                    </span>
+
+                    {u.deleteFlag ? (
+                      <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">
+                        Bị chặn
                       </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
+                        Đang hoạt động
+                      </span>
+                    )}
+                  </div>
 
-                      {u.deleteFlag ? (
-                        <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">
-                          Bị chặn
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
-                          Đang hoạt động
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mt-2 text-xs text-slate-500">
-                      Tạo lúc: {fmtTime(u.createAt)}
-                    </div>
+                  <div className="mt-2 text-xs text-slate-500">
+                    Tạo lúc: {fmtTime(u.createAt)}
                   </div>
                 </div>
 
@@ -399,7 +432,7 @@ export default function AdminUsersPage() {
             ))}
         </div>
 
-        {/* ✅ DESKTOP/TABLET TABLE VIEW */}
+        {/* DESKTOP/TABLET TABLE VIEW */}
         <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50">

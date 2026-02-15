@@ -32,13 +32,7 @@ function IconReports() {
     </svg>
   );
 }
-function IconSearch() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-      <path d="M10 2a8 8 0 105.29 14.03l4.34 4.34 1.41-1.41-4.34-4.34A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z" />
-    </svg>
-  );
-}
+
 function IconMenu() {
   return (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
@@ -46,20 +40,15 @@ function IconMenu() {
     </svg>
   );
 }
-function IconClose() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-      <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L12 13.41l-6.89 6.3-1.42-1.41L10.59 12 3.69 5.71 5.1 4.29 12 10.59l6.89-6.3 1.41 1.42z" />
-    </svg>
-  );
-}
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
-  const [q, setQ] = useState("");
 
   const [menuOpen, setMenuOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
 
   const nav = useMemo(
     () => [
@@ -68,7 +57,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       { href: "/admin/users", label: "Người dùng", icon: <IconUsers /> },
       { href: "/admin/reports", label: "Báo cáo", icon: <IconReports /> },
     ],
-    []
+    [],
   );
 
   const isActive = (href: string) => {
@@ -87,7 +76,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <aside
       className={[
         "rounded-3xl bg-white border border-slate-200 shadow-sm overflow-hidden",
-        // ✅ cao cố định, gần chạm cuối, độc lập nội dung bên phải
         "h-[calc(100vh-2rem)]",
       ].join(" ")}
     >
@@ -158,13 +146,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* FULL WIDTH */}
       <div className="px-4 py-4">
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
-          {/* ✅ DESKTOP SIDEBAR: cố định chiều cao, không phụ thuộc content bên phải */}
           <div className="hidden lg:block">{Sidebar}</div>
 
-          {/* ✅ MOBILE DRAWER (Menu nút bấm) */}
           {menuOpen && (
             <div className="lg:hidden fixed inset-0 z-50">
               <button
@@ -178,9 +163,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           )}
 
-          {/* RIGHT SIDE */}
           <section className="min-w-0">
-            {/* TOPBAR */}
             <div className="">
               <div className="px-6 py-4 flex items-center justify-between gap-4">
                 <div className="min-w-0">
@@ -194,11 +177,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       {activeLabel}
                     </span>
                   </div>
-                  
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {/* ✅ Nút menu (lịch sự) */}
                   <button
                     type="button"
                     onClick={() => setMenuOpen(true)}
@@ -206,19 +187,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     aria-label="Mở menu"
                   >
                     <IconMenu />
-                  </button>
-
-                  {/* ✅ Nút tìm kiếm -> bấm mới hiện */}
-                  <button
-                    type="button"
-                    onClick={() => setSearchOpen((v) => !v)}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    aria-label="Mở tìm kiếm"
-                  >
-                    <span className="text-slate-400">
-                      <IconSearch />
-                    </span>
-                    <span className="hidden sm:inline">Tìm kiếm</span>
                   </button>
 
                   <div className="flex items-center gap-2 rounded-2xl bg-slate-50 border border-slate-200 px-3 py-2">
@@ -231,35 +199,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   </div>
                 </div>
               </div>
-
-              {/* ✅ Search panel: hiện/ẩn theo nút */}
-              {searchOpen && (
-                <div className="px-6 pb-4">
-                  <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-                    <span className="text-slate-400">
-                      <IconSearch />
-                    </span>
-                    <input
-                      value={q}
-                      onChange={(e) => setQ(e.target.value)}
-                      placeholder="Tìm kiếm (chỉ giao diện)"
-                      className="w-full bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setSearchOpen(false)}
-                      className="grid place-items-center h-9 w-9 rounded-xl hover:bg-slate-50 text-slate-500"
-                      aria-label="Đóng tìm kiếm"
-                    >
-                      <IconClose />
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
 
-            {/* CONTENT */}
             <div className="px-6 py-6">{children}</div>
           </section>
         </div>

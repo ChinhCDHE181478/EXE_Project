@@ -2,11 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../_lib/api";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  BarChart,
+  Bar,
+} from "recharts";
 
 type StatsResponse = {
   labels: string[];
   data: number[];
-  label: string;
+  label?: string; // ✅ để optional cho an toàn (swagger không chắc có)
 };
 
 type BaseJsonResponse<T> = {
@@ -17,26 +28,21 @@ type BaseJsonResponse<T> = {
 };
 
 function Card({
-  title,
-  desc,
   children,
   right,
 }: {
-  title: string;
-  desc?: string;
   children: React.ReactNode;
   right?: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-base font-semibold text-slate-900">{title}</div>
-          {desc && <div className="mt-1 text-sm text-slate-500">{desc}</div>}
+      {right && (
+        <div className="flex items-start justify-end gap-3">
+          <div className="min-w-0" />
+          {right}
         </div>
-        {right}
-      </div>
-      <div className="mt-4">{children}</div>
+      )}
+      <div className={right ? "mt-4" : ""}>{children}</div>
     </div>
   );
 }
@@ -64,29 +70,57 @@ function Tab({
   );
 }
 
+function toRows(stats: StatsResponse | null) {
+  if (!stats) return [];
+  return stats.labels.map((lb, i) => ({
+    label: lb,
+    value: stats.data[i] ?? 0,
+  }));
+}
+
 export default function AdminReportsPage() {
+  /**
+   * ✅ INPUT (đang chọn) - KHÔNG auto gọi API
+   */
   const [tab, setTab] = useState<"revenue" | "users" | "package">("revenue");
   const [type, setType] = useState<"DAY" | "MONTH">("DAY");
-  const [startDate, setStartDate] = useState("2024-01-01");
-  const [endDate, setEndDate] = useState("2024-01-07");
+
+  // ✅ mặc định năm 2026
+  const [startDate, setStartDate] = useState("2026-01-01");
+  const [endDate, setEndDate] = useState("2026-12-31");
+
+  /**
+   * ✅ APPLIED (đã áp dụng) - chỉ đổi khi bấm Làm mới / Đặt lại
+   */
+  const [applied, setApplied] = useState<{
+    tab: "revenue" | "users" | "package";
+    type: "DAY" | "MONTH";
+    startDate: string;
+    endDate: string;
+  }>({
+    tab: "revenue",
+    type: "DAY",
+    startDate: "2026-01-01",
+    endDate: "2026-12-31",
+  });
 
   const [stats, setStats] = useState<StatsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const endpoint = useMemo(() => {
-    if (tab === "users") return "/admin/stats/users";
-    if (tab === "package") return "/admin/stats/revenue-by-package";
+    if (applied.tab === "users") return "/admin/stats/users";
+    if (applied.tab === "package") return "/admin/stats/revenue-by-package";
     return "/admin/stats/revenue";
-  }, [tab]);
+  }, [applied.tab]);
 
   const params = useMemo(() => {
     const p: Record<string, any> = {};
-    if (tab !== "package") p.type = type;
-    if (startDate) p.startDate = startDate;
-    if (endDate) p.endDate = endDate;
+    if (applied.tab !== "package") p.type = applied.type;
+    if (applied.startDate) p.startDate = applied.startDate;
+    if (applied.endDate) p.endDate = applied.endDate;
     return p;
-  }, [tab, type, startDate, endDate]);
+  }, [applied]);
 
   async function load() {
     try {
@@ -105,18 +139,54 @@ export default function AdminReportsPage() {
     }
   }
 
+  // ✅ load lần đầu để vào trang có dữ liệu luôn
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [endpoint, params]);
+  }, []);
 
-  const rows = useMemo(() => {
-    if (!stats) return [];
-    return stats.labels.map((lb, i) => ({
-      label: lb,
-      value: stats.data[i] ?? 0,
-    }));
-  }, [stats]);
+  function applyFilters() {
+    const next = { tab, type, startDate, endDate };
+    setApplied(next);
+    load();
+  }
+
+  function resetFilters() {
+    setTab("revenue");
+    setType("DAY");
+    setStartDate("2026-01-01");
+    setEndDate("2026-12-31");
+
+    const next = {
+      tab: "revenue" as const,
+      type: "DAY" as const,
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+    };
+    setApplied(next);
+    setTimeout(load, 0);
+  }
+
+  const rows = useMemo(() => toRows(stats), [stats]);
+
+  const chartData = useMemo(
+    () => rows.map((r) => ({ name: r.label, value: r.value })),
+    [rows]
+  );
+
+  const chipLabel =
+    applied.tab === "package"
+      ? "Nhóm theo gói"
+      : applied.type === "DAY"
+      ? "Ngày"
+      : "Tháng";
+
+  const chartTitle =
+    applied.tab === "revenue"
+      ? "Doanh thu"
+      : applied.tab === "users"
+      ? "Người dùng"
+      : "Doanh thu theo gói";
 
   return (
     <div className="space-y-6">
@@ -129,9 +199,8 @@ export default function AdminReportsPage() {
         </p>
       </div>
 
+      {/* FILTER */}
       <Card
-        title="Loại báo cáo"
-        desc="Chọn loại thống kê và khoảng thời gian."
         right={
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Tab
@@ -152,7 +221,7 @@ export default function AdminReportsPage() {
           </div>
         }
       >
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           <div className="space-y-1">
             <div className="text-xs font-semibold text-slate-600">Đơn vị</div>
             <select
@@ -186,53 +255,98 @@ export default function AdminReportsPage() {
             />
           </div>
 
-          {/* ✅ mobile không thiếu nút */}
-          <div className="flex items-end sm:col-span-2 xl:col-span-1">
+          <div className="grid grid-cols-2 gap-2 sm:col-span-2 xl:col-span-2 xl:flex xl:items-end">
             <button
-              onClick={load}
+              onClick={applyFilters}
               className="w-full rounded-xl bg-[#0891b2] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
             >
               Làm mới
             </button>
+            <button
+              onClick={resetFilters}
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+            >
+              Đặt lại
+            </button>
           </div>
 
+          {/* ✅ GIỮ ô label nhưng chỉ hiện khi có label */}
           <div className="flex items-end sm:col-span-2 xl:col-span-1">
             <div className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 truncate">
               {loading
                 ? "Đang tải..."
-                : stats
+                : stats?.label
                 ? stats.label
-                : "Chưa có dữ liệu"}
+                : " "}
             </div>
           </div>
         </div>
       </Card>
 
+      {/* CHART + TABLE */}
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-base font-semibold text-slate-900">
-                Xem trước biểu đồ
+                {chartTitle}
               </div>
               <div className="text-sm text-slate-500">
-                Hiện là placeholder (ưu tiên UI). Sau này gắn chart library vào.
+                {applied.tab === "package"
+                  ? "So sánh doanh thu giữa các gói."
+                  : "Xu hướng theo thời gian."}
               </div>
             </div>
+
             <span className="shrink-0 text-xs rounded-full bg-[#0891b2]/10 text-[#0891b2] px-2 py-1 font-semibold">
-              {tab === "package" ? "Nhóm theo gói" : type === "DAY" ? "Ngày" : "Tháng"}
+              {chipLabel}
             </span>
           </div>
 
-          <div className="mt-4 h-[240px] sm:h-[320px] rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-sm text-slate-500">
-            Chỗ đặt biểu đồ
+          <div className="mt-4 h-[260px] sm:h-[360px] rounded-xl border border-slate-200 bg-white p-3">
+            {loading ? (
+              <div className="h-full rounded-xl bg-slate-50 flex items-center justify-center text-sm text-slate-500">
+                Đang tải...
+              </div>
+            ) : rows.length === 0 ? (
+              <div className="h-full rounded-xl bg-slate-50 flex items-center justify-center text-sm text-slate-500">
+                Không có dữ liệu để vẽ biểu đồ
+              </div>
+            ) : applied.tab === "package" ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ left: 8, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="value" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ left: 8, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="value" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </div>
+
+          {err && (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+              <div className="font-semibold text-slate-900">Có lỗi</div>
+              <div className="mt-1 text-sm text-slate-600">{err}</div>
+            </div>
+          )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="text-base font-semibold text-slate-900">Bảng dữ liệu</div>
           <div className="mt-1 text-sm text-slate-500">
-            {tab === "package" ? "Doanh thu theo gói" : "Theo thời gian"}
+            {applied.tab === "package" ? "Doanh thu theo gói" : "Theo thời gian"}
           </div>
 
           <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
@@ -240,7 +354,7 @@ export default function AdminReportsPage() {
               <thead className="bg-slate-50">
                 <tr className="text-left text-slate-600">
                   <th className="px-4 py-3 font-semibold">
-                    {tab === "package" ? "Gói" : "Mốc"}
+                    {applied.tab === "package" ? "Gói" : "Mốc"}
                   </th>
                   <th className="px-4 py-3 font-semibold text-right">Giá trị</th>
                 </tr>
@@ -276,13 +390,6 @@ export default function AdminReportsPage() {
               </tbody>
             </table>
           </div>
-
-          {err && (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-              <div className="font-semibold text-slate-900">Có lỗi</div>
-              <div className="mt-1 text-sm text-slate-600">{err}</div>
-            </div>
-          )}
         </div>
       </div>
     </div>
