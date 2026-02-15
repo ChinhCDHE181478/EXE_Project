@@ -10,12 +10,13 @@ export default function BannerSection() {
   const defaultValue = useMemo<FlightSearchValue>(
     () => ({
       tripType: "ONEWAY",
-      from: "HAN",
-      to: "SGN",
+      from: "",
+      to: "",
+      fromId: "",
+      toId: "",
       departDate: new Date().toISOString().slice(0, 10),
       adults: 1,
       currency_code: "VND",
-      budget: 2000000,
     }),
     []
   );
@@ -45,11 +46,12 @@ export default function BannerSection() {
           {/* Search card */}
           <FlightSearchCard
             value={defaultValue}
-            variant="hero"
             onSearch={(next) => {
               const qs = new URLSearchParams({
                 from: next.from,
                 to: next.to,
+                fromId: next.fromId || next.from,
+                toId: next.toId || next.to,
                 departDate: next.departDate,
                 page: "1",
                 adults: String(next.adults),

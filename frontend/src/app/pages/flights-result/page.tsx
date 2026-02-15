@@ -26,14 +26,18 @@ export default function FlightResultsPage() {
   const sp = useSearchParams();
 
   const initial: FlightSearchValue = useMemo(() => {
-    const from = str(sp.get("from"), "HAN");
-    const to = str(sp.get("to"), "SGN");
+    const fromId = str(sp.get("fromId"), "");
+    const toId = str(sp.get("toId"), "");
+    const from = str(sp.get("from"), fromId);
+    const to = str(sp.get("to"), toId);
     const departDate = str(sp.get("departDate"), new Date().toISOString().slice(0, 10));
     const returnDate = str(sp.get("returnDate"), "");
     return {
       tripType: returnDate ? "ROUND" : "ONEWAY",
       from,
       to,
+      fromId,
+      toId,
       departDate,
       returnDate: returnDate || undefined,
       adults: num(sp.get("adults"), 1),
@@ -51,8 +55,8 @@ export default function FlightResultsPage() {
 
   const apiParams = useMemo(() => {
     const p: Record<string, string> = {
-      from: initial.from,
-      to: initial.to,
+      fromId: initial.fromId || initial.from,
+      toId: initial.toId || initial.to,
       departDate: initial.departDate,
       page: String(page),
       adults: String(initial.adults),
@@ -88,6 +92,8 @@ export default function FlightResultsPage() {
 
   const goToPage = (nextPage: number) => {
     const base: Record<string, string> = { ...apiParams, page: String(nextPage) };
+    if (initial.from) base.from = initial.from;
+    if (initial.to) base.to = initial.to;
     router.push(`/pages/flights-result?${buildQueryString(base)}`);
     window.scrollTo({ top: 400, behavior: "smooth" });
   };
@@ -112,8 +118,20 @@ export default function FlightResultsPage() {
               <FlightSearchCard
                 value={initial}
                 onSearch={(next) => {
-                  const qs = { ...next, page: "1", adults: String(next.adults) };
-                  router.push(`/pages/flights-result?${buildQueryString(qs as any)}`);
+                  const qs: Record<string, string> = {
+                    from: next.from,
+                    to: next.to,
+                    fromId: next.fromId || next.from,
+                    toId: next.toId || next.to,
+                    departDate: next.departDate,
+                    page: "1",
+                    adults: String(next.adults),
+                    currency_code: next.currency_code || "VND",
+                  };
+                  if (next.tripType === "ROUND" && next.returnDate) qs.returnDate = next.returnDate;
+                  if (next.childrenAge) qs.childrenAge = next.childrenAge;
+                  if (next.cabinClass) qs.cabinClass = next.cabinClass;
+                  router.push(`/pages/flights-result?${buildQueryString(qs)}`);
                 }}
               />
             </div>

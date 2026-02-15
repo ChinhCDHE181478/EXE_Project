@@ -8,32 +8,33 @@ type UserSession = { displayName: string; email: string };
 
 export default function Header() {
   const pathname = usePathname();
+  const shouldHide = pathname?.startsWith("/admin");
+  const [mounted, setMounted] = useState(false);
 
-  // ✅ chỉ tính cờ ẩn, KHÔNG return ở đây
-  const shouldHide =
-    pathname?.startsWith("/admin") || pathname?.startsWith("/chatbox");
+  // State theo dõi scroll
+  const [isScrolled, setIsScrolled] = useState(false);
 
   const nav = [
     { href: "/pages/flights", label: "Chuyến bay" },
     { href: "/pages/hotels", label: "Khách sạn" },
-    { href: "/pages/cars", label: "Thuê xe" },
+    { href: "/chatbox", label: "Lên lịch trình" },
   ];
 
   const active = (href: string) =>
     pathname === href || (href !== "/" && pathname?.startsWith(href));
 
-  // Mobile dropdown state
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
-  // User dropdown (desktop)
   const [userOpen, setUserOpen] = useState(false);
   const userRef = useRef<HTMLDivElement | null>(null);
 
-  // User session
   const [user, setUser] = useState<UserSession | null>(null);
 
-  // Load user từ localStorage
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem("vivuplan_user");
@@ -43,34 +44,58 @@ export default function Header() {
     }
   }, [pathname]);
 
-  const logout = () => {
+  // Lắng nghe scroll để đổi style
+  useEffect(() => {
+    const handleScroll = () => {
+      // Cuộn quá 10px thì đổi màu
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const clearClientSession = () => {
     localStorage.removeItem("vivuplan_user");
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    localStorage.removeItem("token");
+    sessionStorage.removeItem("vivu_draft");
+  };
+
+  const logout = async () => {
+    try {
+      await fetch("/auth/logout", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      });
+    } catch {}
+
+    clearClientSession();
     setUser(null);
     setUserOpen(false);
     setOpen(false);
+    window.dispatchEvent(new Event("logout"));
     window.location.href = "/";
   };
 
-  // Đóng dropdown khi đổi route
   useEffect(() => {
     setOpen(false);
     setUserOpen(false);
   }, [pathname]);
 
-  // Đóng khi click ra ngoài / nhấn ESC (mobile menu)
   useEffect(() => {
     if (!open) return;
-
     const onDown = (e: MouseEvent) => {
       const el = panelRef.current;
       if (!el) return;
       if (!el.contains(e.target as Node)) setOpen(false);
     };
-
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
-
     window.addEventListener("mousedown", onDown);
     window.addEventListener("keydown", onKey);
     return () => {
@@ -79,20 +104,16 @@ export default function Header() {
     };
   }, [open]);
 
-  // Đóng khi click ra ngoài / ESC (user dropdown desktop)
   useEffect(() => {
     if (!userOpen) return;
-
     const onDown = (e: MouseEvent) => {
       const el = userRef.current;
       if (!el) return;
       if (!el.contains(e.target as Node)) setUserOpen(false);
     };
-
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setUserOpen(false);
     };
-
     window.addEventListener("mousedown", onDown);
     window.addEventListener("keydown", onKey);
     return () => {
@@ -101,23 +122,34 @@ export default function Header() {
     };
   }, [userOpen]);
 
-  // ✅ return NULL ở cuối: hooks đã chạy ổn định
   if (shouldHide) return null;
+
+  // Logic xác định xem có nên trong suốt không
+  // Chỉ trong suốt khi: Đang ở trang chủ ("/") VÀ chưa cuộn (isScrolled === false)
+  const isTransparent = mounted && pathname === "/" && !isScrolled;
 
   return (
     <header
-      className="
-        sticky top-0 z-[80]
-        w-full bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75
-        shadow-sm
-      "
+      className={`
+        fixed top-0 z-[80] w-full transition-all duration-300
+        ${
+          isTransparent
+            ? "bg-transparent shadow-none" // Trong suốt hoàn toàn
+            : "bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75 shadow-sm" // Trắng mờ như cũ
+        }
+      `}
     >
       <div className="container mx-auto px-4 h-17 flex items-center justify-between">
         <Link href="/" className="flex items-center shrink-0">
           <img
             src="/brand/logo.png"
             alt="VivuPlan"
-            className="h-24 w-auto object-contain"
+            // Giữ nguyên kích thước h-24 như yêu cầu
+            className="h-24 w-auto object-contain transition-all duration-300"
+            // Nếu logo của bạn màu đen, khi nền tối (transparent) nó sẽ bị chìm.
+            // Đoạn style này sẽ đảo màu logo sang trắng (invert) khi header trong suốt.
+            // Nếu logo của bạn đã nổi trên nền tối rồi thì bỏ dòng style đi.
+            style={isTransparent ? { filter: "brightness(0) invert(1)" } : {}}
           />
         </Link>
 
@@ -127,10 +159,14 @@ export default function Header() {
             <Link
               key={n.href}
               href={n.href}
-              className={`text-[15px] transition-colors ${
+              className={`text-[15px] transition-colors font-medium ${
                 active(n.href)
-                  ? "text-[#0891b2]"
-                  : "text-slate-800 hover:text-[#0891b2]"
+                  ? isTransparent
+                    ? "text-cyan-300" // Active màu sáng khi nền tối
+                    : "text-[#0891b2]" // Active màu xanh khi nền trắng
+                  : isTransparent
+                  ? "text-white/90 hover:text-white" // Text trắng khi nền tối
+                  : "text-slate-800 hover:text-[#0891b2]" // Text đen khi nền trắng
               }`}
             >
               {n.label}
@@ -146,7 +182,11 @@ export default function Header() {
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
               aria-label="Mở menu"
-              className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+              className={`p-2 rounded-lg border transition-colors ${
+                isTransparent
+                  ? "border-white/30 bg-black/20 text-white hover:bg-black/30"
+                  : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+              }`}
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
                 {open ? (
@@ -157,6 +197,7 @@ export default function Header() {
               </svg>
             </button>
 
+            {/* Mobile Dropdown (Luôn giữ nền trắng cho dễ đọc) */}
             {open && (
               <div className="absolute right-0 mt-2 w-[260px] rounded-xl border bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-[90]">
                 <div className="p-2">
@@ -227,7 +268,11 @@ export default function Header() {
               <>
                 <button
                   onClick={() => setUserOpen((v) => !v)}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-slate-800 hover:text-[#0891b2] hover:border-[#0891b2] transition-colors"
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border transition-colors ${
+                    isTransparent
+                      ? "border-white/30 text-white hover:bg-white/10"
+                      : "border-slate-200 text-slate-800 hover:text-[#0891b2] hover:border-[#0891b2]"
+                  }`}
                   title={user.email}
                 >
                   <span className="max-w-[140px] truncate">
@@ -275,7 +320,11 @@ export default function Header() {
             ) : (
               <Link
                 href="/pages/login"
-                className="inline-flex px-3 py-1.5 rounded-md border text-slate-800 hover:text-[#0891b2] hover:border-[#0891b2] transition-colors"
+                className={`inline-flex px-3 py-1.5 rounded-md border transition-colors ${
+                  isTransparent
+                    ? "border-white/30 text-white hover:bg-white/10 hover:border-white"
+                    : "border-slate-200 text-slate-800 hover:text-[#0891b2] hover:border-[#0891b2]"
+                }`}
               >
                 Đăng nhập
               </Link>

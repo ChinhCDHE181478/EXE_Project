@@ -109,6 +109,9 @@ public class JwtService implements IJwtService {
                                         .toEpochMilli()
                         )
                 )
+                .claim("user_id", user.getId())
+                .claim("userId", user.getId())
+                .claim("id", user.getId())
                 .claim("scope", buildScope(user))
                 .build();
 

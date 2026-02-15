@@ -117,10 +117,6 @@ export default function FilterSidebar({
             Xoá bộ lọc
           </button>
         </div>
-
-        <div className="mt-6 mb-8 text-slate-500 text-xs">
-          (Các filter khác như tiện nghi/khu phố… bạn có thể làm tương tự: giữ state → apply() → onChange patch)
-        </div>
       </div>
     </aside>
   );

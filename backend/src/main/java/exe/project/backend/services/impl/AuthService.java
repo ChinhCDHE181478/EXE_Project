@@ -143,15 +143,17 @@ public class AuthService implements IAuthService {
 
     @Override
     public void sendOtpLogin(String email) {
-
+        // 1. Kiểm tra user (giữ nguyên logic cũ)
         userRepository.findByEmail(email).ifPresent(user -> {
             if (user.isDeleteFlag()) {
                 throw new ServiceException(ErrorCode.USER_HAD_BEEN_DELETED);
             }
         });
 
+        // 2. Tạo OTP (giữ nguyên)
         String otp = otpConfig.generateOtp();
 
+        // 3. Lưu vào DB (giữ nguyên)
         OtpVerification otpEntity = OtpVerification.builder()
                 .email(email)
                 .otp(otp)
@@ -162,13 +164,79 @@ public class AuthService implements IAuthService {
 
         otpVerificationRepository.save(otpEntity);
 
+        // 4. Gửi Email HTML chuyên nghiệp
         try {
+            // Lấy tên người dùng từ email (hoặc truy vấn DB nếu muốn hiển thị tên thật)
+            String name = email.split("@")[0];
+
+            // Tạo nội dung HTML
+            String htmlContent = buildOtpEmailTemplate(name, otp);
+
             emailService.sendEmail(
                     email,
-                    "Login to Vivuplan",
-                    "Your OTP code: " + otp
+                    "🔐 Mã xác thực đăng nhập Vivuplan", // Subject có icon tạo sự chú ý
+                    htmlContent
             );
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            // Log lỗi nếu cần thiết
+            // log.error("Error sending OTP email", e);
+        }
+    }
+
+    /**
+     * Tạo giao diện Email HTML chuyên nghiệp
+     */
+    private String buildOtpEmailTemplate(String name, String otp) {
+        return """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 0; }
+                    .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; }
+                    .header { background-color: #0056D2; padding: 30px; text-align: center; }
+                    .header h1 { color: #ffffff; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 1px; }
+                    .content { padding: 40px 30px; color: #333333; line-height: 1.6; }
+                    .greeting { font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #1a1a1a; }
+                    .message { margin-bottom: 25px; color: #555555; }
+                    .otp-box { background-color: #f0f7ff; border: 2px dashed #0056D2; border-radius: 8px; padding: 15px; text-align: center; margin: 30px 0; }
+                    .otp-code { font-size: 36px; font-weight: 800; color: #0056D2; letter-spacing: 8px; font-family: 'Courier New', monospace; }
+                    .expiry { font-size: 13px; color: #888888; margin-top: 10px; text-align: center; }
+                    .footer { background-color: #f9fafb; padding: 20px; text-align: center; font-size: 12px; color: #999999; border-top: 1px solid #eeeeee; }
+                    .footer a { color: #0056D2; text-decoration: none; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>VIVUPLAN</h1>
+                    </div>
+                    <div class="content">
+                        <div class="greeting">Xin chào %s,</div>
+                        <div class="message">
+                            Chúng tôi nhận được yêu cầu đăng nhập vào tài khoản Vivuplan của bạn. 
+                            Vui lòng sử dụng mã bên dưới để hoàn tất xác thực.
+                        </div>
+                        
+                        <div class="otp-box">
+                            <div class="otp-code">%s</div>
+                        </div>
+                        
+                        <div class="expiry">Mã này sẽ hết hạn sau <strong>5 phút</strong>.</div>
+                        
+                        <div class="message" style="margin-top: 25px; font-size: 14px; color: #cc0000;">
+                            ⚠️ Lưu ý: Tuyệt đối không chia sẻ mã này cho bất kỳ ai, kể cả nhân viên Vivuplan.
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p>&copy; 2026 Vivuplan. All rights reserved.</p>
+                        <p>Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này hoặc <a href="#">liên hệ hỗ trợ</a>.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """.formatted(name, otp);
     }
 
     @Override
