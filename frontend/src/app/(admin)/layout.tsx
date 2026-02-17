@@ -1,61 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useAuth } from "../AuthProvider";
+import {
+  LayoutDashboard,
+  CreditCard,
+  Users,
+  BarChart3,
+  Home,
+  LogOut,
+  Menu,
+  ChevronRight,
+  ShieldCheck
+} from "lucide-react";
 
-function IconDashboard() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-      <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
-    </svg>
-  );
-}
-function IconPayments() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-      <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-1.99.9-1.99 2S15.9 22 17 22s2-.9 2-2-.9-2-2-2zM7.2 14h9.9c.75 0 1.4-.41 1.74-1.03L21 7H6.21L5.27 5H2v2h2l3.6 7.59-1.35 2.44C5.52 18.37 6.48 20 8 20h12v-2H8l1.2-2z" />
-    </svg>
-  );
-}
-function IconUsers() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-      <path d="M16 11c1.66 0 3-1.34 3-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zM8 11c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13z" />
-    </svg>
-  );
-}
-function IconReports() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-      <path d="M3 3h18v2H3V3zm2 4h14v14H5V7zm3 3v8h2v-8H8zm4 3v5h2v-5h-2zm4-2v7h2v-7h-2z" />
-    </svg>
-  );
-}
-
-function IconMenu() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
-      <path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" />
-    </svg>
-  );
-}
+// Replaced custom SVGs with lucide-react icons in the nav config below
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { logout, user } = useAuth();
+  const router = useRouter();
   const pathname = usePathname();
 
   const [menuOpen, setMenuOpen] = useState(false);
 
   const nav = useMemo(
     () => [
-      { href: "/admin", label: "Tổng quan", icon: <IconDashboard /> },
-      { href: "/admin/payments", label: "Thanh toán", icon: <IconPayments /> },
-      { href: "/admin/users", label: "Người dùng", icon: <IconUsers /> },
-      { href: "/admin/reports", label: "Báo cáo", icon: <IconReports /> },
+      { href: "/admin", label: "Tổng quan", icon: <LayoutDashboard size={20} /> },
+      { href: "/admin/payments", label: "Thanh toán", icon: <CreditCard size={20} /> },
+      { href: "/admin/users", label: "Người dùng", icon: <Users size={20} /> },
+      { href: "/admin/reports", label: "Báo cáo", icon: <BarChart3 size={20} /> },
     ],
     [],
   );
@@ -133,17 +112,34 @@ export default function AdminLayout({
 
         <div className="my-4 h-px bg-slate-100" />
 
-        <Link
-          href="/pages/login"
-          onClick={() => setMenuOpen(false)}
-          className="flex items-center justify-center rounded-2xl bg-[#0891b2] px-4 py-3 text-sm font-semibold text-white hover:opacity-95"
-        >
-          Đăng nhập
-        </Link>
+        <div className="grid gap-2">
+          <Link
+            href="/"
+            onClick={() => setMenuOpen(false)}
+            className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition text-slate-700 hover:bg-[#0891b2]/10 hover:text-[#0891b2]"
+          >
+            <span className="grid place-items-center h-9 w-9 rounded-xl bg-slate-100">
+              <Home size={20} />
+            </span>
+            <span>Trang chủ</span>
+          </Link>
+
+          <button
+            onClick={async () => {
+              setMenuOpen(false);
+              await logout();
+            }}
+            className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition text-rose-600 hover:bg-rose-50"
+          >
+            <span className="grid place-items-center h-9 w-9 rounded-xl bg-rose-100/50">
+              <LogOut size={20} />
+            </span>
+            <span>Đăng xuất</span>
+          </button>
+        </div>
       </div>
     </aside>
   );
-
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="px-4 py-4">
@@ -186,15 +182,15 @@ export default function AdminLayout({
                     className="lg:hidden inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-700 hover:bg-slate-50"
                     aria-label="Mở menu"
                   >
-                    <IconMenu />
+                    <Menu size={20} />
                   </button>
 
                   <div className="flex items-center gap-2 rounded-2xl bg-slate-50 border border-slate-200 px-3 py-2">
                     <span className="grid place-items-center h-8 w-8 rounded-xl bg-[#0891b2]/10 text-[#0891b2] font-bold">
-                      N
+                      {user?.email?.charAt(0).toUpperCase() || "A"}
                     </span>
                     <div className="text-sm font-semibold text-slate-800">
-                      Quản trị
+                      {user?.email?.split('@')[0] || "Quản trị"}
                     </div>
                   </div>
                 </div>

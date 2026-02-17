@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import FlightSearchCard, { FlightSearchValue } from "@/app/pages/flights/_components/FlightSearchCard";
@@ -21,7 +21,7 @@ function buildQueryString(base: Record<string, string>) {
   return qs.toString();
 }
 
-export default function FlightResultsPage() {
+function FlightResultsContent() {
   const router = useRouter();
   const sp = useSearchParams();
 
@@ -76,7 +76,7 @@ export default function FlightResultsPage() {
       try {
         const res = await flightService.search(apiParams);
         if (cancelled) return;
-        const data = res?.result || res; 
+        const data = res?.result || res;
         setOffers(Array.isArray(data?.flightOffers) ? data.flightOffers : []);
       } catch (e: any) {
         if (cancelled) return;
@@ -110,9 +110,9 @@ export default function FlightResultsPage() {
       >
         <div className="bg-gradient-to-b from-black/40 via-black/25 to-white/70">
           <div className="container mx-auto px-4 py-16 md:py-20">
-            <div className="text-center mb-10">
-              <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow">Khám phá thế giới cùng chúng tôi</h1>
-              <p className="mt-3 text-white/95 text-lg font-medium">Tìm kiếm và so sánh hàng triệu chuyến bay để có lựa chọn tốt nhất</p>
+            <div className="text-center mb-10 mt-18 font-sans">
+              <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg">Khám phá thế giới cùng chúng tôi</h1>
+              <p className="mt-4 text-white/90 text-lg font-medium drop-shadow-md">Tìm kiếm hàng triệu chuyến bay để có lựa chọn tốt nhất</p>
             </div>
             <div className="max-w-7xl mx-auto">
               <FlightSearchCard
@@ -141,7 +141,7 @@ export default function FlightResultsPage() {
 
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
-          
+
           {offers.length > 0 ? (
             <>
               <FlightResultsPane
@@ -152,12 +152,12 @@ export default function FlightResultsPage() {
                 totalPages={1}
                 buildHref={() => ""}
               />
-              
+
               {!isLoading && (
                 <div className="mt-10 flex justify-center items-center gap-3">
                   {/* NÚT QUAY LẠI - CHỈ HIỆN TỪ TRANG 2 */}
                   {page > 1 && (
-                    <button 
+                    <button
                       onClick={() => goToPage(page - 1)}
                       className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 text-white rounded-full text-sm font-bold shadow-md hover:bg-slate-900 transition-all active:scale-95"
                     >
@@ -166,7 +166,7 @@ export default function FlightResultsPage() {
                   )}
 
                   {/* NÚT XEM THÊM */}
-                  <button 
+                  <button
                     onClick={() => goToPage(page + 1)}
                     className="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-full text-sm font-bold shadow-sm hover:bg-slate-50 hover:border-[#0891b2] hover:text-[#0891b2] transition-all active:scale-95"
                   >
@@ -182,13 +182,13 @@ export default function FlightResultsPage() {
               <h2 className="text-xl font-bold text-slate-800 mb-2">Đã hết kết quả tìm kiếm</h2>
               <p className="text-slate-500 mb-8">Bạn đã xem hết các chuyến bay có sẵn ở trang {page - 1}.</p>
               <div className="flex justify-center gap-3">
-                <button 
+                <button
                   onClick={() => goToPage(page - 1)}
                   className="px-8 py-3 bg-slate-800 text-white rounded-2xl font-bold hover:bg-slate-900 transition-all"
                 >
                   ← QUAY LẠI TRANG {page - 1}
                 </button>
-                <button 
+                <button
                   onClick={() => goToPage(1)}
                   className="px-8 py-3 border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 transition-all"
                 >
@@ -210,5 +210,17 @@ export default function FlightResultsPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function FlightResultsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-slate-600">Đang tải...</div>
+      </div>
+    }>
+      <FlightResultsContent />
+    </Suspense>
   );
 }

@@ -129,7 +129,7 @@ export default function ResultsPane({
       </div>
 
       <div className="bg-white shadow-xl ring-1 ring-black/5">
-        <div className="flex flex-wrap gap-6 px-4 pt-3">
+        {/* <div className="flex flex-wrap gap-6 px-4 pt-3">
           {["Khuyến nghị", "Đánh giá hàng đầu", "Giá thấp nhất", "Nhiều sao nhất", "Gần nhất trước"].map((t, i) => (
             <button
               key={t}
@@ -141,9 +141,9 @@ export default function ResultsPane({
               {t}
             </button>
           ))}
-        </div>
-        <div className="px-4 pb-3">
-          <div className="rounded-md bg-sky-50 text-slate-700 text-sm px-3 py-2 shadow-sm">
+        </div> */}
+        <div className="px-4 pb-3 pt-3">
+          <div className=" rounded-md bg-sky-50 text-slate-700 text-sm px-3 py-2 shadow-sm">
             Chúng tôi tìm thông tin giá từ mọi nguồn trên mạng – số tiền các nhà cung cấp chi trả cho chúng tôi quyết định
             thứ tự sắp xếp kết quả tìm kiếm.
           </div>

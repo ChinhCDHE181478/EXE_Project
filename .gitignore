@@ -1,0 +1,49 @@
+# ================================================================
+# .gitignore - Production Deployment
+# ================================================================
+
+# Environment files (SENSITIVE - không commit)
+**/.env.production
+.env.local
+.env
+
+# SSL Certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
+/etc/letsencrypt/
+
+# Docker volumes
+/data/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.Python
+venv/
+env/
+
+# Build artifacts
+/backend/target/
+/frontend/.next/
+/frontend/out/
+/frontend/build/
+
+# Others
+.gemini/

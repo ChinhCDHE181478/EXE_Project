@@ -2,16 +2,26 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { api } from "../_lib/api";
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
+  AreaChart,
+  Area,
 } from "recharts";
+import {
+  Users,
+  DollarSign,
+  UserPlus,
+  ArrowRight,
+  CreditCard,
+  BarChart3,
+  Settings,
+  LayoutDashboard
+} from "lucide-react";
 
 type DashboardStats = {
   totalUsers: number;
@@ -33,6 +43,7 @@ type BaseJsonResponse<T> = {
 };
 
 const fmtNumber = (n: number) => new Intl.NumberFormat("vi-VN").format(n);
+const fmtMoney = (n: number) => `${new Intl.NumberFormat("vi-VN").format(n)}₫`;
 
 function toYmd(d: Date) {
   const yyyy = d.getFullYear();
@@ -45,26 +56,28 @@ function StatCard({
   title,
   value,
   hint,
-  icon,
+  icon: Icon,
+  color = "bg-[#0891b2]",
 }: {
   title: string;
   value: string;
   hint?: string;
-  icon: React.ReactNode;
+  icon: any;
+  color?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
+    <div className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-xs font-semibold text-slate-500">{title}</div>
-          <div className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+          <div className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</div>
+          <div className="mt-2 text-3xl font-black tracking-tight text-slate-900">
             {value}
           </div>
-          {hint && <div className="mt-1 text-sm text-slate-500">{hint}</div>}
+          {hint && <div className="mt-1 text-sm font-medium text-slate-400">{hint}</div>}
         </div>
 
-        <div className="shrink-0 h-12 w-12 rounded-2xl bg-[#0891b2] text-white flex items-center justify-center shadow-sm">
-          {icon}
+        <div className={`shrink-0 h-14 w-14 rounded-2xl ${color} text-white flex items-center justify-center shadow-lg transform transition group-hover:scale-110`}>
+          <Icon size={24} />
         </div>
       </div>
     </div>
@@ -87,34 +100,25 @@ export default function AdminDashboardPage() {
         title: "Tổng người dùng",
         getValue: () =>
           loading ? "—" : stats ? fmtNumber(stats.totalUsers) : "—",
-        hint: error ? "Không tải được dữ liệu" : undefined,
-        icon: (
-          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
-            <path d="M16 11c1.66 0 3-1.34 3-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zM8 11c1.66 0 3-1.34 3-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13z" />
-          </svg>
-        ),
+        hint: error ? "Lỗi tải dữ liệu" : "Tất cả tài khoản",
+        icon: Users,
+        color: "bg-[#0891b2]",
       },
       {
         title: "Tổng doanh thu",
         getValue: () =>
-          loading ? "—" : stats ? `${fmtNumber(stats.totalRevenue)}₫` : "—",
-        hint: error ? "Không tải được dữ liệu" : undefined,
-        icon: (
-          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
-            <path d="M12 1a11 11 0 100 22 11 11 0 000-22zm1 17.93V20h-2v-1.07a8.99 8.99 0 01-4.62-2.12l1.42-1.42A6.98 6.98 0 0011 17.9V14h-1a4 4 0 010-8h1V4h2v2h1a6 6 0 014.24 1.76l-1.42 1.42A3.99 3.99 0 0013 8.07V12h1a4 4 0 010 8h-1zM11 8h-1a2 2 0 000 4h1V8zm2 10h1a2 2 0 000-4h-1v4z" />
-          </svg>
-        ),
+          loading ? "—" : stats ? fmtMoney(stats.totalRevenue) : "—",
+        hint: error ? "Lỗi tải dữ liệu" : "Doanh thu tích lũy",
+        icon: DollarSign,
+        color: "bg-emerald-600",
       },
       {
-        title: "Người dùng mới hôm nay",
+        title: "User mới hôm nay",
         getValue: () =>
           loading ? "—" : stats ? fmtNumber(stats.newUsersToday) : "—",
-        hint: error ? "Không tải được dữ liệu" : undefined,
-        icon: (
-          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor">
-            <path d="M15 12c2.21 0 4-1.79 4-4S17.21 4 15 4s-4 1.79-4 4 1.79 4 4 4zm-9 0c2.21 0 4-1.79 4-4S8.21 4 6 4 2 5.79 2 8s1.79 4 4 4zm0 2c-3.33 0-6 1.67-6 4v2h12v-2c0-2.33-2.67-4-6-4zm9 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V20h8v-2c0-2.33-3.58-4-9-4z" />
-          </svg>
-        ),
+        hint: error ? "Lỗi tải dữ liệu" : "Số lượng đăng ký mới",
+        icon: UserPlus,
+        color: "bg-amber-500",
       },
     ],
     [loading, stats, error],
@@ -125,10 +129,24 @@ export default function AdminDashboardPage() {
       {
         href: "/admin/payments",
         title: "Thanh toán",
-        desc: "Quản lý giao dịch",
+        desc: "Quản lý dòng tiền & đối soát",
+        icon: CreditCard,
+        color: "text-blue-600 bg-blue-50",
       },
-      { href: "/admin/users", title: "Người dùng", desc: "Quản lý người dùng" },
-      { href: "/admin/reports", title: "Báo cáo", desc: "Biểu đồ thống kê" },
+      {
+        href: "/admin/users",
+        title: "Người dùng",
+        desc: "Phân quyền & hỗ trợ user",
+        icon: Users,
+        color: "text-purple-600 bg-purple-50",
+      },
+      {
+        href: "/admin/reports",
+        title: "Báo cáo",
+        desc: "Thống kê chuyên sâu",
+        icon: BarChart3,
+        color: "text-[#0891b2] bg-cyan-50",
+      },
     ],
     [],
   );
@@ -145,9 +163,7 @@ export default function AdminDashboardPage() {
     let mounted = true;
 
     async function loadAll() {
-      const baseURL = process.env.NEXT_PUBLIC_API_URL || "";
-
-      // ✅ mặc định 7 ngày gần nhất (tự tính theo thời gian hiện tại)
+      // ✅ mặc định 7 ngày gần nhất
       const end = new Date();
       const start = new Date();
       start.setDate(end.getDate() - 6);
@@ -159,15 +175,12 @@ export default function AdminDashboardPage() {
         setLoading(true);
         setError(null);
 
-        const res = await axios.get<BaseJsonResponse<DashboardStats>>(
-          `${baseURL}/admin/dashboard`,
-        );
+        const res = await api.get<BaseJsonResponse<DashboardStats>>("/admin/dashboard");
         if (!mounted) return;
         setStats(res.data.result);
       } catch (e: any) {
         if (!mounted) return;
-        setError(e?.message || "Không tải được dữ liệu tổng quan");
-        setStats(null);
+        setError(e?.response?.data?.message || e?.message || "Không tải được dữ liệu tổng quan");
       } finally {
         if (mounted) setLoading(false);
       }
@@ -176,23 +189,19 @@ export default function AdminDashboardPage() {
         setRevLoading(true);
         setRevError(null);
 
-        const res2 = await axios.get<BaseJsonResponse<StatsResponse>>(
-          `${baseURL}/admin/stats/revenue`,
-          {
-            params: {
-              type: "DAY",
-              startDate,
-              endDate,
-            },
+        const res2 = await api.get<BaseJsonResponse<StatsResponse>>("/admin/stats/revenue", {
+          params: {
+            type: "DAY",
+            startDate,
+            endDate,
           },
-        );
+        });
 
         if (!mounted) return;
         setRev(res2.data.result);
       } catch (e: any) {
         if (!mounted) return;
-        setRevError(e?.message || "Không tải được biểu đồ doanh thu");
-        setRev(null);
+        setRevError(e?.response?.data?.message || e?.message || "Không tải được biểu đồ doanh thu");
       } finally {
         if (mounted) setRevLoading(false);
       }
@@ -205,28 +214,30 @@ export default function AdminDashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="min-w-0">
-          <div className="text-base font-semibold text-slate-900">
-            Tổng quan
+          <div className="flex items-center gap-2 text-2xl font-black tracking-tight text-slate-900">
+            <LayoutDashboard className="text-[#0891b2]" size={28} />
+            Hệ thống quản trị
           </div>
-          <div className="mt-1 text-sm text-slate-500">
-            Thống kê nhanh hệ thống và điều hướng tới các module.
+          <div className="mt-1 text-sm font-medium text-slate-500">
+            Chào mừng trở lại! Dưới đây là dữ liệu mới nhất từ hệ thống.
           </div>
         </div>
 
         <Link
           href="/admin/reports"
-          className="inline-flex w-full sm:w-auto justify-center rounded-xl bg-[#0891b2] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+          className="group inline-flex items-center justify-center gap-2 rounded-xl bg-[#0891b2] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 transition hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
         >
-          Xem báo cáo
+          Phân tích chi tiết
+          <ArrowRight size={18} className="transition group-hover:translate-x-1" />
         </Link>
       </div>
 
       {/* KPI */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((c) => (
           <StatCard
             key={c.title}
@@ -234,105 +245,129 @@ export default function AdminDashboardPage() {
             value={c.getValue()}
             hint={c.hint}
             icon={c.icon}
+            color={c.color}
           />
         ))}
       </div>
 
-      {/* Main */}
-      <div className="grid gap-4 xl:grid-cols-3">
+      {/* Main Grid */}
+      <div className="grid gap-6 xl:grid-cols-3">
         {/* Chart */}
-        <div className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
+        <div className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="min-w-0">
-              <div className="text-base font-semibold text-slate-900">
-                Doanh thu 7 ngày gần nhất
+              <div className="text-lg font-bold text-slate-900">
+                Xu hướng doanh thu
               </div>
-              <div className="text-sm text-slate-500">
-                Xem chi tiết & lọc nâng cao trong mục Báo cáo.
+              <div className="text-sm font-medium text-slate-500">
+                Hiển thị dữ liệu 7 ngày gần nhất.
               </div>
             </div>
 
-            <span className="shrink-0 text-xs rounded-full bg-[#0891b2]/10 text-[#0891b2] px-2 py-1 font-semibold">
-              {rev ? rev.label : "Theo ngày"}
-            </span>
+            <div className="flex items-center gap-2 rounded-full bg-slate-100 px-4 py-1.5 text-xs font-bold text-slate-600">
+              <BarChart3 size={14} className="text-[#0891b2]" />
+              {rev?.label || "Theo ngày"}
+            </div>
           </div>
 
-          <div className="mt-4 h-[240px] sm:h-[280px] rounded-xl border border-slate-200 bg-white p-3">
+          <div className="mt-6 h-[280px] sm:h-[340px] w-full">
             {revLoading ? (
-              <div className="h-full rounded-xl bg-slate-50 flex items-center justify-center text-sm text-slate-500">
-                Đang tải biểu đồ...
+              <div className="flex h-full items-center justify-center rounded-2xl bg-slate-50 text-sm font-medium text-slate-400">
+                Đang nạp dữ liệu...
               </div>
             ) : chartData.length === 0 ? (
-              <div className="h-full rounded-xl bg-slate-50 flex items-center justify-center text-sm text-slate-500">
-                Chưa có dữ liệu để vẽ biểu đồ
+              <div className="flex h-full items-center justify-center rounded-2xl bg-slate-50 text-sm font-medium text-slate-400">
+                Chưa có dữ liệu giao dịch
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ left: 8, right: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Line
+                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="dashboardRev" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0891b2" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#0891b2" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fontWeight: 600, fill: "#94a3b8" }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fontWeight: 600, fill: "#94a3b8" }}
+                    tickFormatter={(val) => `${val / 1000}k`}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: "16px", border: "none", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)" }}
+                    formatter={(val: any) => [fmtMoney(Number(val)), "Doanh thu"]}
+                  />
+                  <Area
                     type="monotone"
                     dataKey="value"
-                    strokeWidth={2}
-                    dot={false}
+                    stroke="#0891b2"
+                    strokeWidth={4}
+                    fillOpacity={1}
+                    fill="url(#dashboardRev)"
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             )}
           </div>
 
           {revError && (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-              <div className="font-semibold text-slate-900">Có lỗi</div>
-              <div className="mt-1 text-sm text-slate-600">{revError}</div>
+            <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50/50 p-4 text-sm font-medium text-rose-600">
+              <div className="font-bold uppercase tracking-wider text-[10px]">Lỗi hệ thống</div>
+              <div className="mt-1">{revError}</div>
             </div>
           )}
         </div>
 
         {/* Quick actions */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-base font-semibold text-slate-900">
-            Truy cập nhanh
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2 text-lg font-bold text-slate-900">
+            <Settings className="text-slate-400" size={20} />
+            Lối tắt nhanh
           </div>
-          <div className="mt-1 text-sm text-slate-500">
-            Đi nhanh tới các chức năng chính.
+          <div className="mt-1 text-sm font-medium text-slate-500">
+            Truy cập các khu vực quản lý thường xuyên.
           </div>
 
-          <div className="mt-4 grid gap-3">
+          <div className="mt-6 grid gap-4">
             {quick.map((q) => (
               <Link
                 key={q.href}
                 href={q.href}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 hover:bg-[#0891b2]/10 transition"
+                className="group flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 transition hover:border-[#0891b2]/30 hover:shadow-md active:scale-[0.98]"
               >
-                <div className="font-semibold text-slate-900">{q.title}</div>
-                <div className="text-sm text-slate-500">{q.desc}</div>
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${q.color} transition group-hover:scale-110`}>
+                  <q.icon size={22} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-slate-900 group-hover:text-[#0891b2] transition">{q.title}</div>
+                  <div className="text-xs font-medium text-slate-400">{q.desc}</div>
+                </div>
+                <ArrowRight size={16} className="text-slate-300 opacity-0 transition group-hover:opacity-100 group-hover:translate-x-1" />
               </Link>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="font-semibold text-slate-900">
-            Không tải được dữ liệu tổng quan
+      {/* Global Error Notification */}
+      {error && !loading && (
+        <div className="rounded-2xl border border-rose-200 bg-white p-6 shadow-sm flex items-center gap-4">
+          <div className="h-10 w-10 flex items-center justify-center rounded-full bg-rose-100 text-rose-600">
+            !
           </div>
-          <p className="mt-1 text-sm text-slate-600">{error}</p>
-          <p className="mt-2 text-xs text-slate-500">
-            Gợi ý: set{" "}
-            <code className="px-1 rounded bg-slate-100">
-              NEXT_PUBLIC_API_URL
-            </code>{" "}
-            ={" "}
-            <code className="px-1 rounded bg-slate-100">
-              http://localhost:8080/api/v1
-            </code>
-          </p>
+          <div>
+            <div className="font-bold text-slate-900">Lỗi kết nối máy chủ</div>
+            <p className="text-sm font-medium text-slate-500">{error}</p>
+          </div>
         </div>
       )}
     </div>

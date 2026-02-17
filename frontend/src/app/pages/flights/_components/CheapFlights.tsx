@@ -100,44 +100,13 @@ export default function CheapFlights() {
                     <div className="text-sm opacity-90">{p.country}</div>
                   </div>
                 </div>
-                <div className="px-4 py-3 text-sm text-slate-700">
-                  {p.price}
-                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Ưu đãi hôm nay – nền nhạt theo màu thương hiệu */}
-      <section className="py-16 bg-[#0891b2]/10">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-semibold text-slate-900">
-              Ưu đãi hôm nay
-            </h2>
-            <p className="text-slate-700">
-              Không bỏ lỡ các chương trình khuyến mãi đặc biệt
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-5">
-            {deals.map((d, i) => (
-              <div
-                key={i}
-                className="rounded-2xl bg-white ring-1 ring-black/5 p-6 hover:shadow-lg transition"
-              >
-                <div className="h-10 w-10 rounded-full bg-[#0891b2]/10 text-[#0891b2] flex items-center justify-center mb-3">
-                  {d.icon}
-                </div>
-                <div className="text-lg font-semibold">{d.title}</div>
-                <div className="text-slate-600 mt-1">{d.desc}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Vé máy bay giá rẻ – có hình */}
+      {/* Vé máy bay giá rẻ – có hình
       <section className="py-14">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl md:text-3xl font-semibold">
@@ -169,7 +138,7 @@ export default function CheapFlights() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Tại sao chọn VivuPlan – nền trắng */}
       <section className="py-16">
@@ -188,12 +157,12 @@ export default function CheapFlights() {
               {
                 icon: "💲",
                 title: "Giá tốt nhất",
-                desc: "So sánh giá từ hàng trăm nhà cung cấp để đảm bảo bạn nhận được deal tốt nhất.",
+                desc: "Đảm bảo bạn nhận được deal tốt nhất.",
               },
               {
                 icon: "🔒",
                 title: "An toàn & Bảo mật",
-                desc: "Bảo vệ dữ liệu với chuẩn mã hoá cấp độ ngân hàng.",
+                desc: "Bảo vệ dữ liệu cá nhân của bạn.",
               },
               {
                 icon: "💬",

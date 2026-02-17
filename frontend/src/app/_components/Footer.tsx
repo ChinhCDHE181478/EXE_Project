@@ -23,8 +23,7 @@ export default function Footer() {
           </Link>
 
           <p className="mt-3 text-slate-700">
-            Nền tảng du lịch giúp bạn tìm kiếm và đặt chuyến bay, khách sạn & xe
-            thuê tốt nhất.
+            Nền tảng du lịch giúp bạn tìm kiếm và đặt chuyến bay, khách sạn tốt nhất.
           </p>
         </div>
 
@@ -86,7 +85,7 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-slate-200 text-center text-sm text-slate-600 py-4">
-        © {new Date().getFullYear()} VivuPlan. Tất cả quyền được bảo lưu.
+        © {new Date().getFullYear()} VivuPlan.
       </div>
     </footer>
   );

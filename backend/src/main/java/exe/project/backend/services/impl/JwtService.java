@@ -106,19 +106,17 @@ public class JwtService implements IJwtService {
                         new Date(
                                 Instant.now()
                                         .plusSeconds(accessExpire)
-                                        .toEpochMilli()
-                        )
-                )
+                                        .toEpochMilli()))
                 .claim("user_id", user.getId())
                 .claim("userId", user.getId())
+                .claim("email", user.getEmail())
                 .claim("id", user.getId())
                 .claim("scope", buildScope(user))
                 .build();
 
         JWSObject jwsObject = new JWSObject(
                 jwsHeader,
-                new Payload(claimsSet.toJSONObject())
-        );
+                new Payload(claimsSet.toJSONObject()));
 
         try {
             jwsObject.sign(new MACSigner(signerKey.getBytes()));

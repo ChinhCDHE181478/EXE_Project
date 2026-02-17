@@ -34,12 +34,12 @@ export default function BannerSection() {
       <div className="bg-gradient-to-b from-black/40 via-black/25 to-white/70">
         <div className="container mx-auto px-4 py-20 md:py-28">
           {/* Title */}
-          <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold text-white drop-shadow">
+          <div className="text-center font-sans">
+            <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg">
               Khám phá thế giới cùng chúng tôi
             </h1>
-            <p className="mt-3 text-white/95 text-lg">
-              Tìm kiếm và so sánh hàng triệu chuyến bay, khách sạn và xe thuê
+            <p className="mt-4 text-white/90 text-lg font-medium drop-shadow-md">
+              Tìm kiếm hàng triệu chuyến bay và khách sạn
             </p>
           </div>
 

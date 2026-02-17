@@ -2,7 +2,7 @@ export default function BenefitsStrip() {
   const items = [
     { icon: "％", title: "Ưu đãi khách sạn hấp dẫn", desc: "Chúng tôi tìm ưu đãi của những khách sạn hàng đầu thế giới, sau đó chia sẻ kết quả tìm kiếm với bạn." },
     { icon: "🔔", title: "Giá mới nhất", desc: "Luôn hiển thị thông tin tổng quan về giá mới nhất để bạn có kỳ vọng rõ ràng." },
-    { icon: "⚖️", title: "Tìm kiếm chính xác", desc: "Lọc theo hồ bơi, huỷ miễn phí hay chính sách đặt phòng linh hoạt – đúng tiêu chí bạn cần." },
+    { icon: "⚖️", title: "Tìm kiếm chính xác", desc: "Linh hoạt – đúng tiêu chí bạn cần." },
   ];
 
   return (

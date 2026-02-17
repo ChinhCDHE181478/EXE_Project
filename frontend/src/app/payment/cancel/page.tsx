@@ -27,13 +27,6 @@ export default function PaymentCancelPage() {
                     >
                         Về trang chủ
                     </Link>
-
-                    <Link
-                        href="/subscription"
-                        className="block w-full border-2 border-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-lg hover:bg-gray-50 transition-all duration-200"
-                    >
-                        Thử lại
-                    </Link>
                 </div>
             </div>
         </main>

@@ -48,6 +48,8 @@ public class SubscriptionService implements ISubscriptionService {
                 ? (long) Math.ceil(seconds / 86400.0)
                 : 0;
 
+        System.out.println(isActive);
+
         return SubscriptionStatusResponse.builder()
                 .isActive(isActive)
                 .expiredAt(subscription.getExpiredAt())

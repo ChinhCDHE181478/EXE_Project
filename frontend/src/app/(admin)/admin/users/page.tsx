@@ -3,6 +3,22 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { api } from "../../_lib/api";
+import {
+  Users,
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  UserPen,
+  Mail,
+  UserCheck,
+  UserMinus,
+  LayoutDashboard,
+  RefreshCw,
+  RotateCcw,
+  CalendarDays,
+  MoreVertical
+} from "lucide-react";
 
 type Role = "USER" | "ADMIN";
 
@@ -44,9 +60,16 @@ const roleLabel: Record<Role, string> = {
   ADMIN: "Quản trị",
 };
 
-function Pill({ children }: { children: React.ReactNode }) {
+function Pill({ children, color = "slate" }: { children: React.ReactNode, color?: string }) {
+  const colors: Record<string, string> = {
+    slate: "border-slate-200 bg-white text-slate-700",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    rose: "border-rose-200 bg-rose-50 text-rose-700",
+    cyan: "border-[#0891b2]/20 bg-[#0891b2]/5 text-[#0891b2]",
+  };
+
   return (
-    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold leading-5 ${colors[color]}`}>
       {children}
     </span>
   );
@@ -58,7 +81,7 @@ function Card({
   children,
   right,
 }: {
-  title: string;
+  title?: string;
   desc?: string;
   children: React.ReactNode;
   right?: React.ReactNode;
@@ -66,22 +89,22 @@ function Card({
   const showHeader = Boolean(title || desc || right);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       {showHeader && (
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="min-w-0">
             {title && (
-              <div className="text-base font-semibold text-slate-900">
+              <div className="text-lg font-bold text-slate-900 leading-none">
                 {title}
               </div>
             )}
-            {desc && <div className="mt-1 text-sm text-slate-500">{desc}</div>}
+            {desc && <div className="mt-2 text-sm font-medium text-slate-500">{desc}</div>}
           </div>
-          {right}
+          {right && <div className="flex shrink-0 items-center gap-2">{right}</div>}
         </div>
       )}
 
-      <div className={showHeader ? "mt-4" : ""}>{children}</div>
+      <div className={showHeader ? "mt-6" : ""}>{children}</div>
     </div>
   );
 }
@@ -101,41 +124,35 @@ function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-black/30"
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
-        <div className="flex items-start justify-between gap-3">
-          <div className="text-lg font-semibold text-slate-900">{title}</div>
+      <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div className="text-lg font-bold text-slate-900">{title}</div>
           <button
             onClick={onClose}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
+            className="rounded-xl p-2 text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition"
           >
-            Đóng
+            <RotateCcw size={20} />
           </button>
         </div>
-        <div className="mt-4">{children}</div>
+        <div className="px-6 py-6">{children}</div>
       </div>
     </div>
   );
 }
 
 export default function AdminUsersPage() {
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
 
-  /**
-   * ✅ 1) FILTER INPUT (nhập liệu - KHÔNG tự lọc)
-   */
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role | "">("");
   const [isBlocked, setIsBlocked] = useState<"" | "true" | "false">("");
   const [isSubscribed, setIsSubscribed] = useState<"" | "true" | "false">("");
 
-  /**
-   * ✅ 2) APPLIED FILTER (đã áp dụng - chỉ đổi khi bấm "Áp dụng"/"Đặt lại")
-   */
   const [applied, setApplied] = useState<{
     email: string;
     role: Role | "";
@@ -157,13 +174,10 @@ export default function AdminUsersPage() {
   const [targetUserId, setTargetUserId] = useState<number | null>(null);
   const [extType, setExtType] = useState<"DAY" | "MONTH">("DAY");
   const [extAmount, setExtAmount] = useState<string>("30");
+  const [submitting, setSubmitting] = useState(false);
 
-  /**
-   * ✅ Query chỉ phụ thuộc applied + page/size
-   * -> KHÔNG tự chạy khi user đang nhập filter
-   */
   const query = useMemo(() => {
-    const params: Record<string, any> = { page, size };
+    const params: Record<string, any> = { page: page - 1, size };
 
     if (applied.email) params.email = applied.email;
     if (applied.role) params.role = applied.role;
@@ -185,7 +199,7 @@ export default function AdminUsersPage() {
       );
       setData(res.data.result);
     } catch (e: any) {
-      setErr(e?.message || "Không tải được danh sách người dùng");
+      setErr(e?.response?.data?.message || e?.message || "Không tải được danh sách người dùng");
       setData(null);
     } finally {
       setLoading(false);
@@ -199,18 +213,15 @@ export default function AdminUsersPage() {
 
   function applyFilters() {
     setApplied({ email, role, isBlocked, isSubscribed });
-    setPage(0);
+    setPage(1);
   }
 
   function resetFilters() {
-    // reset input
     setEmail("");
     setRole("");
     setIsBlocked("");
     setIsSubscribed("");
-    setPage(0);
-
-    // reset applied (tự load lại list all)
+    setPage(1);
     setApplied({ email: "", role: "", isBlocked: "", isSubscribed: "" });
   }
 
@@ -224,6 +235,7 @@ export default function AdminUsersPage() {
   async function submitExtend() {
     if (!targetUserId) return;
     try {
+      setSubmitting(true);
       setErr(null);
 
       const trimmed = extAmount.trim();
@@ -241,258 +253,271 @@ export default function AdminUsersPage() {
 
       setOpen(false);
       setTargetUserId(null);
-      // ✅ reload lại list (tuỳ bạn muốn hay không, nhưng thường nên có)
       await load();
     } catch (e: any) {
-      setErr(e?.message || "Gia hạn thất bại");
+      setErr(e?.response?.data?.message || e?.message || "Gia hạn thất bại");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Người dùng
-          </h1>
-          <p className="text-sm text-slate-500">
-            Danh sách người dùng, lọc và gia hạn gói.
+          <div className="flex items-center gap-2 text-2xl font-black tracking-tight text-slate-900">
+            <Users className="text-[#0891b2]" size={28} />
+            Quản diện Người dùng
+          </div>
+          <p className="mt-1 text-sm font-medium text-slate-500">
+            Quản lý tài khoản, phân quyền và gia hạn dịch vụ.
           </p>
         </div>
 
         <Link
           href="/admin"
-          className="inline-flex w-full sm:w-auto justify-center rounded-xl bg-[#0891b2] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+          className="group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 hover:border-slate-300"
         >
-          Về Tổng quan
+          <LayoutDashboard size={18} className="text-slate-400 group-hover:text-slate-600" />
+          Tổng quan
         </Link>
       </div>
 
-      {/* ✅ Filters: BỎ "Bộ lọc" + BỎ desc + BỎ "Chỉ giao diện" */}
-      <Card title="">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <div className="space-y-1 xl:col-span-2">
-            <div className="text-xs font-semibold text-slate-600">Email</div>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="VD: user@gmail.com"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0891b2]/20"
-            />
+      {/* Filters Card */}
+      <Card>
+        <div className="flex items-center gap-2 mb-4 text-xs font-black uppercase tracking-widest text-[#0891b2]">
+          <Filter size={14} />
+          Bộ lọc tìm kiếm
+        </div>
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="space-y-1.5 xl:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase">Email người dùng</label>
+            <div className="relative group">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0891b2] transition" size={16} />
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="VD: user@example.com"
+                className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm font-medium outline-none ring-offset-2 focus:ring-2 focus:ring-[#0891b2]/30 focus:border-[#0891b2]"
+              />
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <div className="text-xs font-semibold text-slate-600">Vai trò</div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase">Vai trò</label>
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as any)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0891b2]/20"
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold outline-none ring-offset-2 focus:ring-2 focus:ring-[#0891b2]/30 focus:border-[#0891b2]"
             >
-              <option value="">Tất cả</option>
+              <option value="">Tất cả vai trò</option>
               <option value="USER">Người dùng</option>
-              <option value="ADMIN">Quản trị</option>
+              <option value="ADMIN">Quản trị viên</option>
             </select>
           </div>
 
-          <div className="space-y-1">
-            <div className="text-xs font-semibold text-slate-600">
-              Trạng thái
-            </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-500 uppercase">Trạng thái chặn</label>
             <select
               value={isBlocked}
               onChange={(e) => setIsBlocked(e.target.value as any)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold outline-none ring-offset-2 focus:ring-2 focus:ring-[#0891b2]/30 focus:border-[#0891b2]"
             >
-              <option value="">Tất cả</option>
+              <option value="">Tất cả trạng thái</option>
               <option value="false">Đang hoạt động</option>
-              <option value="true">Bị chặn</option>
+              <option value="true">Đã bị chặn</option>
             </select>
           </div>
 
-          {/* Buttons */}
-          <div className="grid grid-cols-2 gap-2 xl:flex xl:items-end">
+          <div className="flex items-end gap-2 xl:col-span-1">
             <button
               onClick={applyFilters}
-              className="w-full rounded-xl bg-[#0891b2] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+              disabled={loading}
+              className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#0891b2] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 transition hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
             >
-              Áp dụng
+              <Search size={18} />
+              Tìm
             </button>
             <button
               onClick={resetFilters}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+              className="flex items-center justify-center rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
+              title="Đặt lại"
             >
-              Đặt lại
+              <RotateCcw size={20} />
             </button>
           </div>
 
-          {/* isSubscribed (giữ field vì bạn đang dùng param) */}
-          <div className="space-y-1 xl:col-span-2">
-            <div className="text-xs font-semibold text-slate-600">
-              Đang đăng ký gói
-            </div>
+          <div className="space-y-1.5 xl:col-span-2">
+            <label className="text-xs font-bold text-slate-500 uppercase">Trạng thái gói dịch vụ</label>
             <select
               value={isSubscribed}
               onChange={(e) => setIsSubscribed(e.target.value as any)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold outline-none ring-offset-2 focus:ring-2 focus:ring-[#0891b2]/30 focus:border-[#0891b2]"
             >
-              <option value="">Tất cả</option>
-              <option value="true">Đang đăng ký</option>
-              <option value="false">Chưa đăng ký</option>
+              <option value="">Tất cả người dùng</option>
+              <option value="true">Đã đăng ký gói</option>
+              <option value="false">Chưa đăng ký gói</option>
             </select>
           </div>
         </div>
       </Card>
 
-      {/* List */}
+      {/* List Card */}
       <Card
-        title="Danh sách người dùng"
-        desc="Bảng người dùng (phân trang)."
+        title="Danh sách hội viên"
+        desc="Quản lý thông tin và trạng thái đăng ký của từng thành viên."
         right={
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <Pill>
-              {loading
-                ? "Đang tải..."
-                : data
-                ? `${data.totalElements} người dùng`
-                : "0 người dùng"}
-            </Pill>
-            <select
-              value={size}
-              onChange={(e) => {
-                setSize(Number(e.target.value));
-                setPage(0);
-              }}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-              aria-label="Số dòng mỗi trang"
-            >
-              <option value={10}>10 / trang</option>
-              <option value={20}>20 / trang</option>
-              <option value={50}>50 / trang</option>
-            </select>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full border border-[#0891b2]/20 bg-[#0891b2]/5 px-3 py-1.5">
+              <UserCheck size={14} className="text-[#0891b2]" />
+              <span className="text-xs font-bold text-[#0891b2]">
+                {loading ? "..." : data?.totalElements ?? 0} thành viên
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 uppercase">Hiển thị:</span>
+              <select
+                value={size}
+                onChange={(e) => {
+                  setSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-bold outline-none"
+              >
+                <option value={10}>10 dòng</option>
+                <option value={20}>20 dòng</option>
+                <option value={50}>50 dòng</option>
+              </select>
+            </div>
           </div>
         }
       >
-        {/* MOBILE LIST VIEW */}
-        <div className="grid gap-3 md:hidden">
-          {loading && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 text-slate-500">
-              Đang tải...
-            </div>
-          )}
+        {/* Loading State */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+            <RefreshCw className="text-[#0891b2] animate-spin mb-4" size={32} />
+            <p className="text-sm font-bold text-slate-500">Đang truy xuất dữ liệu từ máy chủ...</p>
+          </div>
+        )}
 
-          {!loading && (!data || data.content.length === 0) && (
-            <div className="rounded-xl border border-slate-200 bg-white p-4 text-slate-500">
-              Không có dữ liệu.
-            </div>
-          )}
+        {/* Empty State */}
+        {!loading && (!data || data.content.length === 0) && (
+          <div className="flex flex-col items-center justify-center py-20 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+            <Users className="text-slate-300 mb-4" size={48} />
+            <p className="text-sm font-bold text-slate-500">Không tìm thấy người dùng nào phù hợp</p>
+            <button onClick={resetFilters} className="mt-4 text-[#0891b2] font-bold text-xs hover:underline uppercase tracking-widest">Xoá bộ lọc</button>
+          </div>
+        )}
 
+        {/* MOBILE CARDS VIEW */}
+        <div className="grid gap-4 md:hidden">
           {!loading &&
             data?.content?.map((u) => (
               <div
                 key={u.id}
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md hover:border-[#0891b2]/30"
               >
-                <div className="min-w-0">
-                  <div className="font-semibold text-slate-900">#{u.id}</div>
-                  <div className="mt-1 text-sm text-slate-800 break-all">
-                    {u.email}
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-tighter text-slate-400">UID: #{u.id}</span>
+                  <div className="flex items-center gap-2">
+                    <Pill color={u.role === "ADMIN" ? "cyan" : "slate"}>
                       {roleLabel[u.role]}
-                    </span>
-
-                    {u.deleteFlag ? (
-                      <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">
-                        Bị chặn
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
-                        Đang hoạt động
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-2 text-xs text-slate-500">
-                    Tạo lúc: {fmtTime(u.createAt)}
+                    </Pill>
                   </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-end">
+                <div className="mt-4">
+                  <div className="flex items-center gap-2 text-slate-900 font-bold break-all">
+                    <Mail size={16} className="text-slate-400 shrink-0" />
+                    {u.email}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Trạng thái</span>
+                    {u.deleteFlag ? (
+                      <Pill color="rose">Bị chặn</Pill>
+                    ) : (
+                      <Pill color="emerald">Hoạt động</Pill>
+                    )}
+                  </div>
+
                   <button
                     onClick={() => openExtend(u.id)}
-                    className="rounded-xl bg-[#0891b2] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+                    className="flex items-center gap-2 rounded-xl bg-[#0891b2]/10 px-4 py-2 text-xs font-bold text-[#0891b2] hover:bg-[#0891b2] hover:text-white transition"
                   >
+                    <CalendarDays size={14} />
                     Gia hạn gói
                   </button>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                  <div className="flex items-center gap-1">
+                    <CalendarDays size={12} />
+                    Tạo lúc: {fmtTime(u.createAt)}
+                  </div>
                 </div>
               </div>
             ))}
         </div>
 
-        {/* DESKTOP/TABLET TABLE VIEW */}
-        <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
+        {/* DESKTOP TABLE VIEW */}
+        <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-100">
           <table className="min-w-full text-sm">
-            <thead className="bg-slate-50">
-              <tr className="text-left text-slate-600">
-                <th className="px-4 py-3 font-semibold">ID</th>
-                <th className="px-4 py-3 font-semibold">Email</th>
-                <th className="px-4 py-3 font-semibold">Vai trò</th>
-                <th className="px-4 py-3 font-semibold">Trạng thái</th>
-                <th className="px-4 py-3 font-semibold">Tạo lúc</th>
-                <th className="px-4 py-3 font-semibold text-right">Thao tác</th>
+            <thead>
+              <tr className="bg-slate-50 text-left text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-200">
+                <th className="px-6 py-4">Thành viên</th>
+                <th className="px-6 py-4">Vai trò</th>
+                <th className="px-6 py-4">Trạng thái</th>
+                <th className="px-6 py-4">Ngày tham gia</th>
+                <th className="px-6 py-4 text-right">Quản lý</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
-              {loading && (
-                <tr>
-                  <td className="px-4 py-4 text-slate-500" colSpan={6}>
-                    Đang tải...
-                  </td>
-                </tr>
-              )}
-
-              {!loading && (!data || data.content.length === 0) && (
-                <tr>
-                  <td className="px-4 py-6 text-slate-500" colSpan={6}>
-                    Không có dữ liệu.
-                  </td>
-                </tr>
-              )}
-
+            <tbody className="divide-y divide-slate-100 bg-white">
               {!loading &&
                 data?.content?.map((u) => (
-                  <tr key={u.id} className="hover:bg-[#0891b2]/5">
-                    <td className="px-4 py-3 font-semibold text-slate-900">
-                      #{u.id}
+                  <tr key={u.id} className="group hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl font-black text-white shadow-sm ${u.role === "ADMIN" ? "bg-slate-800" : "bg-[#0891b2]"}`}>
+                          {u.email.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-slate-900 truncate max-w-[200px]">{u.email}</div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">#{u.id}</div>
+                        </div>
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-800">{u.email}</td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700">
+                    <td className="px-6 py-4">
+                      <Pill color={u.role === "ADMIN" ? "cyan" : "slate"}>
                         {roleLabel[u.role]}
-                      </span>
+                      </Pill>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-6 py-4 text-slate-800">
                       {u.deleteFlag ? (
-                        <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">
+                        <div className="flex items-center gap-1.5 text-rose-600 font-bold">
+                          <UserMinus size={16} />
                           Bị chặn
-                        </span>
+                        </div>
                       ) : (
-                        <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">
-                          Đang hoạt động
-                        </span>
+                        <div className="flex items-center gap-1.5 text-emerald-600 font-bold">
+                          <UserCheck size={16} />
+                          Hoạt động
+                        </div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-6 py-4 text-slate-500 font-medium">
                       {fmtTime(u.createAt)}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => openExtend(u.id)}
-                        className="rounded-xl bg-[#0891b2] px-3 py-1.5 text-sm font-semibold text-white hover:opacity-95"
+                        className="inline-flex items-center gap-2 rounded-xl border border-[#0891b2]/20 bg-white px-3 py-1.5 text-xs font-bold text-[#0891b2] transition hover:bg-[#0891b2] hover:text-white"
                       >
+                        <UserPen size={14} />
                         Gia hạn
                       </button>
                     </td>
@@ -502,84 +527,113 @@ export default function AdminUsersPage() {
           </table>
         </div>
 
-        {/* Pagination */}
-        <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="text-sm text-slate-600">
-            Trang{" "}
-            <span className="font-semibold">{(data?.number ?? 0) + 1}</span> /{" "}
-            <span className="font-semibold">{data?.totalPages ?? 1}</span>
+        {/* Pagination UI */}
+        <div className="mt-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+            Trang <span className="text-slate-900">{(data?.number ?? 0) + 1}</span> / <span className="text-slate-900">{data?.totalPages ?? 1}</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+          <div className="flex items-center gap-2">
             <button
-              disabled={!data || data.first}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50 hover:bg-slate-50"
+              disabled={!data || data.first || loading}
+              onClick={() => {
+                setPage((p) => Math.max(1, p - 1));
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white"
             >
+              <ChevronLeft size={18} className="transition group-hover:-translate-x-0.5" />
               Trước
             </button>
             <button
-              disabled={!data || data.last}
-              onClick={() => setPage((p) => p + 1)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50 hover:bg-slate-50"
+              disabled={!data || data.last || loading}
+              onClick={() => {
+                setPage((p) => p + 1);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="group flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-white"
             >
               Sau
+              <ChevronRight size={18} className="transition group-hover:translate-x-0.5" />
             </button>
           </div>
         </div>
 
         {err && (
-          <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-            <div className="font-semibold text-slate-900">Có lỗi</div>
-            <div className="mt-1 text-sm text-slate-600">{err}</div>
+          <div className="mt-6 flex items-center gap-3 rounded-2xl bg-rose-50 p-4 border border-rose-100 text-sm font-bold text-rose-600">
+            <div className="h-8 w-8 flex items-center justify-center rounded-full bg-rose-200 text-rose-700 shrink-0">!</div>
+            <div className="flex-1">
+              <div className="uppercase text-[10px] font-black tracking-widest leading-none mb-1">Cảnh báo hệ thống</div>
+              {err}
+            </div>
           </div>
         )}
       </Card>
 
-      {/* Extend modal */}
+      {/* Subscription Extension Modal */}
       <Modal
         open={open}
-        title={`Gia hạn gói${
-          targetUserId ? ` - Người dùng #${targetUserId}` : ""
-        }`}
+        title="Gia hạn gói hội viên"
         onClose={() => setOpen(false)}
       >
-        <div className="grid gap-3">
-          <div className="grid gap-1">
-            <div className="text-xs font-semibold text-slate-600">Đơn vị</div>
-            <select
-              value={extType}
-              onChange={(e) => setExtType(e.target.value as any)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-            >
-              <option value="DAY">Ngày</option>
-              <option value="MONTH">Tháng</option>
-            </select>
+        <div className="space-y-6">
+          <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
+            <div className="h-12 w-12 flex items-center justify-center rounded-2xl bg-[#0891b2] text-white font-black text-lg">
+              {targetUserId}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-black uppercase tracking-widest text-[#0891b2] mb-0.5">Mã người dùng</div>
+              <div className="text-sm font-bold text-slate-900 truncate">ID: {targetUserId}</div>
+            </div>
           </div>
 
-          <div className="grid gap-1">
-            <div className="text-xs font-semibold text-slate-600">Số lượng</div>
-            <input
-              value={extAmount}
-              onChange={(e) => setExtAmount(e.target.value)}
-              placeholder="VD: 30"
-              inputMode="numeric"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-            />
+          <div className="grid gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-500 uppercase">Đơn vị thời gian</label>
+              <select
+                value={extType}
+                onChange={(e) => setExtType(e.target.value as any)}
+                className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none border focus:border-[#0891b2] focus:ring-4 focus:ring-[#0891b2]/10"
+              >
+                <option value="DAY">Theo ngày</option>
+                <option value="MONTH">Theo tháng</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-500 uppercase">Số lượng gia hạn</label>
+              <div className="relative">
+                <input
+                  value={extAmount}
+                  onChange={(e) => setExtAmount(e.target.value)}
+                  placeholder="VD: 30"
+                  inputMode="numeric"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold outline-none border focus:border-[#0891b2] focus:ring-4 focus:ring-[#0891b2]/10"
+                />
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400 tracking-widest uppercase">
+                  {extType === "DAY" ? "Ngày" : "Tháng"}
+                </div>
+              </div>
+              <p className="text-[11px] font-medium text-slate-400 italic mt-1.5">
+                Lưu ý: Thời gian sẽ được cộng dồn vào hạn dùng hiện tại của người dùng.
+              </p>
+            </div>
           </div>
 
-          <div className="mt-2 flex items-center justify-end gap-2">
+          <div className="flex items-center gap-3 pt-2">
             <button
               onClick={() => setOpen(false)}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+              className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 active:scale-[0.98]"
             >
-              Huỷ
+              Huỷ bỏ
             </button>
             <button
               onClick={submitExtend}
-              className="rounded-xl bg-[#0891b2] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+              disabled={submitting}
+              className="flex-[2] flex items-center justify-center gap-2 rounded-xl bg-[#0891b2] px-4 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 transition hover:opacity-95 active:scale-[0.98] disabled:opacity-50"
             >
-              Gia hạn
+              {submitting ? <RefreshCw className="animate-spin" size={18} /> : <UserCheck size={18} />}
+              {submitting ? "Đang xử lý..." : "Xác nhận gia hạn"}
             </button>
           </div>
         </div>

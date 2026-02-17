@@ -147,7 +147,7 @@ function Modal({
 }
 
 export default function AdminPaymentsPage() {
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState(1);
   const [size, setSize] = useState(10);
 
   /**
@@ -188,7 +188,7 @@ export default function AdminPaymentsPage() {
    * -> filter KHÔNG tự chạy khi user đang nhập
    */
   const query = useMemo(() => {
-    const params: Record<string, any> = { page, size };
+    const params: Record<string, any> = { page: page - 1, size };
 
     if (applied.status) params.status = applied.status;
     if (applied.userId) params.userId = Number(applied.userId);
@@ -227,7 +227,7 @@ export default function AdminPaymentsPage() {
 
   function applyFilters() {
     setApplied({ status, userId, startDate, endDate });
-    setPage(0);
+    setPage(1);
   }
 
   function resetFilters() {
@@ -236,7 +236,7 @@ export default function AdminPaymentsPage() {
     setUserId("");
     setStartDate("");
     setEndDate("");
-    setPage(0);
+    setPage(1);
 
     // reset applied (và tự load lại list all)
     setApplied({ status: "", userId: "", startDate: "", endDate: "" });
@@ -320,7 +320,7 @@ export default function AdminPaymentsPage() {
               onChange={(e) => setStatus(e.target.value as any)}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0891b2]/20"
             >
-              <option value="">Tất cả</option>
+              <option value="">Tất cả trạng thái</option>
               <option value="SUCCESS">Thành công</option>
               <option value="PENDING">Đang chờ</option>
               <option value="FAILED">Thất bại</option>
@@ -334,9 +334,11 @@ export default function AdminPaymentsPage() {
             </div>
             <input
               value={userId}
-              onChange={(e) => setUserId(e.target.value)}
-              placeholder="VD: 1"
+              type="text"
               inputMode="numeric"
+              pattern="[0-9]*"
+              onChange={(e) => setUserId(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder="VD: 1"
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0891b2]/20"
             />
           </div>
@@ -387,14 +389,14 @@ export default function AdminPaymentsPage() {
               {loading
                 ? "Đang tải..."
                 : data
-                ? `${data.totalElements} giao dịch`
-                : "0 giao dịch"}
+                  ? `${data.totalElements} giao dịch`
+                  : "0 giao dịch"}
             </Pill>
             <select
               value={size}
               onChange={(e) => {
                 setSize(Number(e.target.value));
-                setPage(0);
+                setPage(1);
               }}
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
               aria-label="Số dòng mỗi trang"
@@ -483,6 +485,7 @@ export default function AdminPaymentsPage() {
                     <th className="px-4 py-3 font-semibold">Số tiền</th>
                     <th className="px-4 py-3 font-semibold">Trạng thái</th>
                     <th className="px-4 py-3 font-semibold">Tạo lúc</th>
+                    <th className="px-4 py-3 font-semibold">Cổng</th>
                     <th className="px-4 py-3 font-semibold text-right">
                       Thao tác
                     </th>
@@ -525,6 +528,9 @@ export default function AdminPaymentsPage() {
                         <td className="px-4 py-3 text-slate-600">
                           {fmtTime(p.createAt)}
                         </td>
+                        <td className="px-4 py-3">
+                          <Pill>{p.paymentGateway}</Pill>
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <button
                             onClick={() => openUpdate(p)}
@@ -551,7 +557,7 @@ export default function AdminPaymentsPage() {
             <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
               <button
                 disabled={!data || data.first}
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:opacity-50 hover:bg-slate-50"
               >
                 Trước

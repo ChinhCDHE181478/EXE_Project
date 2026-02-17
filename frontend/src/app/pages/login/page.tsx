@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authService } from "@/lib/services/auth";
+import { storeToken } from "@/lib/actions/storeToken";
 
 function SocialBtn({
   children,
@@ -22,7 +23,7 @@ function SocialBtn({
   );
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -67,40 +68,6 @@ export default function LoginPage() {
   };
 
   /**
-   * Store minimal user info for UI header display.
-   * (Tokens are stored via tokenStore inside authService)
-   */
-  const saveUserForHeader = (
-    emailValue: string,
-    displayName?: string,
-    userId?: string | number | null
-  ) => {
-    const name = displayName || emailValue.split("@")[0] || emailValue;
-    let resolvedId: string | number | null = userId ?? null;
-
-    try {
-      const raw = localStorage.getItem("vivuplan_user");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        resolvedId =
-          resolvedId ??
-          parsed?.id ??
-          parsed?.userId ??
-          parsed?.user_id ??
-          null;
-      }
-    } catch {}
-
-    const sessionData: Record<string, any> = {
-      displayName: name,
-      email: emailValue,
-    };
-    if (resolvedId != null) sessionData.id = resolvedId;
-
-    localStorage.setItem("vivuplan_user", JSON.stringify(sessionData));
-  };
-
-  /**
    * Step 1: request OTP
    * Backend: POST /auth/otp-login/{email}
    */
@@ -128,11 +95,8 @@ export default function LoginPage() {
     try {
       const data = await authService.otpLoginVerify({ email, otp });
 
-      const displayName = data?.user?.displayName || data?.user?.name;
-      const userId =
-        data?.user?.id ?? data?.user?.userId ?? data?.user?.user_id ?? null;
 
-      saveUserForHeader(email, displayName, userId);
+      storeToken(data, true);
 
       // ✅ Redirect về đúng nơi gọi login
       router.replace(nextPath);
@@ -168,7 +132,7 @@ export default function LoginPage() {
         md:pt-10
       "
     >
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-4 h-full mt-40">
         <div className="mt-4 md:mt-0">
           <div className="mx-auto grid max-w-6xl overflow-hidden rounded-2xl bg-white shadow-lg ring-1 ring-black/5 md:grid-cols-2">
             {/* LEFT */}
@@ -193,7 +157,7 @@ export default function LoginPage() {
                   Chào mừng trở lại
                 </h3>
                 <p className="text-white/90 text-sm sm:text-base">
-                  Đăng nhập để đồng bộ chuyến bay, khách sạn và thuê xe của bạn.
+                  Đăng nhập để đồng bộ chuyến bay, khách sạn của bạn.
                 </p>
               </div>
             </div>
@@ -213,8 +177,8 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Social demo */}
-              <div className="mt-6 flex gap-3">
+              {/* {/* Social demo */}
+              {/* <div className="mt-6 flex gap-3">
                 <SocialBtn onClick={() => alert("Google login (demo)")}>
                   <svg viewBox="0 0 24 24" className="h-5 w-5">
                     <path
@@ -244,7 +208,7 @@ export default function LoginPage() {
                 <span className="h-px flex-1 bg-slate-200" />
                 hoặc
                 <span className="h-px flex-1 bg-slate-200" />
-              </div>
+              </div> */}
 
               {/* Email -> OTP */}
               <form onSubmit={handleContinue} className="space-y-4">
@@ -306,11 +270,10 @@ export default function LoginPage() {
                         type="button"
                         onClick={resendOTP}
                         disabled={resendIn > 0 || loading}
-                        className={`${
-                          resendIn > 0 || loading
-                            ? "text-slate-400"
-                            : "text-[#0891b2] hover:underline"
-                        }`}
+                        className={`${resendIn > 0 || loading
+                          ? "text-slate-400"
+                          : "text-[#0891b2] hover:underline"
+                          }`}
                       >
                         {resendIn > 0 ? `Gửi lại (${resendIn}s)` : "Gửi lại mã"}
                       </button>
@@ -326,7 +289,7 @@ export default function LoginPage() {
                 )}
               </form>
 
-              <p className="mt-6 text-xs text-slate-500">
+              {/* <p className="mt-6 text-xs text-slate-500">
                 Khi tiếp tục, bạn đồng ý với{" "}
                 <a className="underline" href="#">
                   Điều khoản sử dụng
@@ -336,11 +299,23 @@ export default function LoginPage() {
                   Chính sách bảo mật
                 </a>{" "}
                 của VivuPlan.
-              </p>
+              </p> */}
             </div>
           </div>
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-slate-600">Loading...</div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

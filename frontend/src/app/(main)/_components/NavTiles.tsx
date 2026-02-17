@@ -8,13 +8,6 @@ function IconHotel() {
     </svg>
   );
 }
-function IconCar() {
-  return (
-    <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
-      <path d="M5 11l1.5-4.5A2 2 0 018.4 5h7.2A2 2 0 0117.5 6.5L19 11v6h-1.5a1.5 1.5 0 01-3 0H9.5a1.5 1.5 0 01-3 0H5v-6zm2.2-4l-1 3h11.6l-1-3H7.2z" />
-    </svg>
-  );
-}
 function IconGlobe() {
   return (
     <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
@@ -26,7 +19,7 @@ function IconGlobe() {
 export default function NavTiles() {
   return (
     <section className="container mx-auto px-4 mt-8">
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 gap-4">
         <Link
           href="/pages/hotels"
           className="rounded-xl bg-[#0891b2]/10 hover:bg-[#0891b2]/15 p-6 text-center font-medium flex items-center justify-center gap-2"
@@ -34,16 +27,10 @@ export default function NavTiles() {
           <IconHotel /> Khách sạn
         </Link>
         <Link
-          href="/pages/cars"
+          href="/pages/flights"
           className="rounded-xl bg-[#0891b2]/10 hover:bg-[#0891b2]/15 p-6 text-center font-medium flex items-center justify-center gap-2"
         >
-          <IconCar /> Thuê xe
-        </Link>
-        <Link
-          href="/pages/explore"
-          className="rounded-xl bg-[#0891b2]/10 hover:bg-[#0891b2]/15 p-6 text-center font-medium flex items-center justify-center gap-2"
-        >
-          <IconGlobe /> Khám phá mọi nơi
+          <IconGlobe /> Chuyến bay
         </Link>
       </div>
     </section>

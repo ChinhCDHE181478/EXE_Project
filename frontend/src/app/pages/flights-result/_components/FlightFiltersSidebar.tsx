@@ -10,22 +10,48 @@ export type HotelFilters = {
   stars: number[];
 };
 
+export type FlightUiFilters = {
+  stops: { direct: boolean; oneStop: boolean; twoPlus: boolean };
+};
+
 export default function FilterSidebar({
+  offers,
   value,
   onChange,
 }: {
-  value: HotelFilters;
-  onChange: (patch: Partial<HotelFilters>) => void;
+  offers?: any[];
+  value: HotelFilters | FlightUiFilters;
+  onChange: (patch: Partial<HotelFilters | FlightUiFilters>) => void;
 }) {
+  // Check if this is FlightUiFilters
+  const isFlightFilters = 'stops' in value;
+
+  if (isFlightFilters) {
+    // For flights, show minimal/placeholder UI for now
+    return (
+      <div className="bg-white rounded-xl p-6 space-y-4 shadow-sm ring-1 ring-slate-200">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-lg text-slate-800">Bộ lọc</h3>
+        </div>
+        <div className="text-sm text-slate-500">
+          Flight filters coming soon...
+        </div>
+      </div>
+    );
+  }
+
+  // Original hotel filter logic
+  const hotelValue = value as HotelFilters;
+
   // Local state để nhập giá mượt hơn (debounce)
-  const [minP, setMinP] = useState(value.minPrice?.toString() ?? "");
-  const [maxP, setMaxP] = useState(value.maxPrice?.toString() ?? "");
+  const [minP, setMinP] = useState(hotelValue.minPrice?.toString() ?? "");
+  const [maxP, setMaxP] = useState(hotelValue.maxPrice?.toString() ?? "");
 
   // Sync khi value từ cha thay đổi (ví dụ reset filter)
   useEffect(() => {
-    setMinP(value.minPrice?.toString() ?? "");
-    setMaxP(value.maxPrice?.toString() ?? "");
-  }, [value.minPrice, value.maxPrice]);
+    setMinP(hotelValue.minPrice?.toString() ?? "");
+    setMaxP(hotelValue.maxPrice?.toString() ?? "");
+  }, [hotelValue.minPrice, hotelValue.maxPrice]);
 
   const handlePriceBlur = () => {
     onChange({
@@ -35,7 +61,7 @@ export default function FilterSidebar({
   };
 
   const toggleStar = (star: number) => {
-    const current = value.stars || [];
+    const current = hotelValue.stars || [];
     const next = current.includes(star)
       ? current.filter((s) => s !== star)
       : [...current, star];
@@ -44,7 +70,7 @@ export default function FilterSidebar({
 
   return (
     <div className="space-y-6 pb-10">
-      
+
       {/* 1. Tiêu đề + Nút Xóa */}
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-lg text-slate-800">Bộ lọc</h3>
@@ -117,7 +143,7 @@ export default function FilterSidebar({
           <label key={star} className="flex items-center gap-3 cursor-pointer group">
             <input
               type="checkbox"
-              checked={value.stars?.includes(star)}
+              checked={hotelValue.stars?.includes(star)}
               onChange={() => toggleStar(star)}
               className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
             />
