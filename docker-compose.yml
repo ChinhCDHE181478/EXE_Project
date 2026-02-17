@@ -69,33 +69,6 @@ services:
     restart: unless-stopped
     # Lưu ý: agents connect tới backend qua http://backend:8080/api/v1
 
-  # ==========================================
-  # REDIS (EXTERNAL - Không build trong Docker)
-  # ==========================================
-  # Redis chạy riêng trên localhost
-  # Backend và Agents connect qua: host.docker.internal:6379
-  # 
-  # Để chạy Redis trên localhost:
-  # - Windows: Download từ https://github.com/microsoftarchive/redis/releases
-  # - Mac: brew install redis && redis-server
-  # - Linux: sudo apt-get install redis-server
-  #
-  # Kiểm tra: redis-cli ping
-  # ==========================================
-
-  # ==========================================
-  # POSTGRESQL (EXTERNAL - Không build trong Docker)
-  # ==========================================
-  # PostgreSQL chạy riêng trên localhost
-  # Backend và Agents connect qua: host.docker.internal:5432
-  #
-  # Để chạy PostgreSQL trên localhost:
-  # - Download từ https://www.postgresql.org/download/
-  # - Tạo database: CREATE DATABASE vivuplan;
-  #
-  # Kiểm tra: psql -U postgres -h localhost -p 5432
-  # ==========================================
-
 networks:
   app-network:
     driver: bridge

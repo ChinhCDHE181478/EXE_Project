@@ -12,7 +12,7 @@ API.interceptors.request.use(
     if (accessToken) {
       req.headers["Authorization"] = `Bearer ${accessToken}`;
     }
-    
+
     return req;
   },
   (error) => {
@@ -25,11 +25,13 @@ API.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response.status === 401 && !originalRequest._retry) {
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       try {
-        const res = await fetch("/api/auth/refresh");
+        const res = await fetch("/api/auth/refresh", {
+          method: "POST",
+        });
         const resData = await res.json();
         const newAccessToken = resData?.accessToken;
         originalRequest.headers["Authorization"] = "Bearer " + newAccessToken;

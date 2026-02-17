@@ -16,7 +16,7 @@ async def init_connection_pool() -> AsyncConnectionPool:
         pool_size = settings.CONNECTION_POOL_SIZE
 
         connection_pool = AsyncConnectionPool(
-            conninfo=f"postgres://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}",
+            conninfo=f"postgres://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}?sslmode=require",
             open=False,
             max_size=pool_size,
             kwargs={

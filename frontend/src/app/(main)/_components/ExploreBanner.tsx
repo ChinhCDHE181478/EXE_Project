@@ -19,9 +19,6 @@ export default function ExploreBanner() {
           <div className="text-3xl md:text-4xl font-bold leading-tight">
             Khám phá điểm đến trong mơ
           </div>
-          <p className="mt-3 text-white/90">
-            So sánh vé bay, khách sạn, thuê xe — tất cả trong một nơi.
-          </p>
           <Link
             href="/pages/explore"
             className="inline-block mt-6 px-5 py-3 rounded-lg bg-[#0891b2] hover:brightness-110 font-semibold"

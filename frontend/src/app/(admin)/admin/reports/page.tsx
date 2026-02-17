@@ -4,20 +4,28 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../../_lib/api";
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
   BarChart,
   Bar,
+  AreaChart,
+  Area,
 } from "recharts";
+import {
+  TrendingUp,
+  Users,
+  Package,
+  Calendar,
+  RefreshCcw,
+  RotateCcw
+} from "lucide-react";
 
 type StatsResponse = {
   labels: string[];
   data: number[];
-  label?: string; // ✅ để optional cho an toàn (swagger không chắc có)
+  label?: string;
 };
 
 type BaseJsonResponse<T> = {
@@ -27,22 +35,32 @@ type BaseJsonResponse<T> = {
   result: T;
 };
 
+type ReportTab = "revenue" | "users" | "package";
+
+const fmtMoney = (n: number) => `${new Intl.NumberFormat("vi-VN").format(n)}₫`;
+const fmtNumber = (n: number) => new Intl.NumberFormat("vi-VN").format(n);
+
 function Card({
+  title,
+  desc,
   children,
   right,
 }: {
+  title?: string;
+  desc?: string;
   children: React.ReactNode;
   right?: React.ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      {right && (
-        <div className="flex items-start justify-end gap-3">
-          <div className="min-w-0" />
-          {right}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="min-w-0">
+          {title && <h3 className="text-base font-semibold text-slate-900">{title}</h3>}
+          {desc && <p className="mt-1 text-sm text-slate-500">{desc}</p>}
         </div>
-      )}
-      <div className={right ? "mt-4" : ""}>{children}</div>
+        {right && <div className="flex shrink-0 items-center gap-2">{right}</div>}
+      </div>
+      <div className={(title || desc || right) ? "mt-4" : ""}>{children}</div>
     </div>
   );
 }
@@ -50,21 +68,23 @@ function Card({
 function Tab({
   active,
   label,
+  icon: Icon,
   onClick,
 }: {
   active: boolean;
   label: string;
+  icon: any;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
-      className={`rounded-xl px-3 py-2 text-sm font-semibold transition ${
-        active
-          ? "bg-[#0891b2] text-white"
-          : "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-      }`}
+      className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${active
+          ? "bg-[#0891b2] text-white shadow-sm"
+          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+        }`}
     >
+      <Icon size={16} />
       {label}
     </button>
   );
@@ -79,29 +99,27 @@ function toRows(stats: StatsResponse | null) {
 }
 
 export default function AdminReportsPage() {
-  /**
-   * ✅ INPUT (đang chọn) - KHÔNG auto gọi API
-   */
-  const [tab, setTab] = useState<"revenue" | "users" | "package">("revenue");
+  const [tab, setTab] = useState<ReportTab>("revenue");
   const [type, setType] = useState<"DAY" | "MONTH">("DAY");
 
-  // ✅ mặc định năm 2026
-  const [startDate, setStartDate] = useState("2026-01-01");
-  const [endDate, setEndDate] = useState("2026-12-31");
+  // ✅ Initialize with last 30 days
+  const [startDate, setStartDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0];
+  });
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split("T")[0]);
 
-  /**
-   * ✅ APPLIED (đã áp dụng) - chỉ đổi khi bấm Làm mới / Đặt lại
-   */
   const [applied, setApplied] = useState<{
-    tab: "revenue" | "users" | "package";
+    tab: ReportTab;
     type: "DAY" | "MONTH";
     startDate: string;
     endDate: string;
   }>({
     tab: "revenue",
     type: "DAY",
-    startDate: "2026-01-01",
-    endDate: "2026-12-31",
+    startDate: "",
+    endDate: "",
   });
 
   const [stats, setStats] = useState<StatsResponse | null>(null);
@@ -132,264 +150,269 @@ export default function AdminReportsPage() {
       });
       setStats(res.data.result);
     } catch (e: any) {
-      setErr(e?.message || "Không tải được báo cáo");
+      setErr(e?.response?.data?.message || e?.message || "Không tải được báo cáo");
       setStats(null);
     } finally {
       setLoading(false);
     }
   }
 
-  // ✅ load lần đầu để vào trang có dữ liệu luôn
+  // ✅ Sync applied on first mount or filter change
   useEffect(() => {
-    load();
+    if (!applied.startDate) {
+      setApplied({ tab, type, startDate, endDate });
+    } else {
+      load();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [applied]);
 
   function applyFilters() {
-    const next = { tab, type, startDate, endDate };
-    setApplied(next);
-    load();
+    setApplied({ tab, type, startDate, endDate });
   }
 
   function resetFilters() {
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    const startStr = start.toISOString().split("T")[0];
+    const endStr = new Date().toISOString().split("T")[0];
+
     setTab("revenue");
     setType("DAY");
-    setStartDate("2026-01-01");
-    setEndDate("2026-12-31");
-
-    const next = {
-      tab: "revenue" as const,
-      type: "DAY" as const,
-      startDate: "2026-01-01",
-      endDate: "2026-12-31",
-    };
-    setApplied(next);
-    setTimeout(load, 0);
+    setStartDate(startStr);
+    setEndDate(endStr);
+    setApplied({ tab: "revenue", type: "DAY", startDate: startStr, endDate: endStr });
   }
 
   const rows = useMemo(() => toRows(stats), [stats]);
-
-  const chartData = useMemo(
-    () => rows.map((r) => ({ name: r.label, value: r.value })),
-    [rows]
-  );
-
-  const chipLabel =
-    applied.tab === "package"
-      ? "Nhóm theo gói"
-      : applied.type === "DAY"
-      ? "Ngày"
-      : "Tháng";
+  const chartData = useMemo(() => rows.map((r) => ({ name: r.label, value: r.value })), [rows]);
 
   const chartTitle =
     applied.tab === "revenue"
       ? "Doanh thu"
       : applied.tab === "users"
-      ? "Người dùng"
-      : "Doanh thu theo gói";
+        ? "Người dùng mới"
+        : "Doanh thu theo gói";
+
+  const isMoney = applied.tab === "revenue" || applied.tab === "package";
 
   return (
     <div className="space-y-6">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-          Báo cáo
-        </h1>
-        <p className="text-sm text-slate-500">
-          Thống kê doanh thu & người dùng theo thời gian (và theo gói).
-        </p>
+      <div className="flex items-center justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Báo cáo & Thống kê
+          </h1>
+          <p className="text-sm text-slate-500">
+            Phân tích hiệu quả kinh doanh và tăng trưởng người dùng.
+          </p>
+        </div>
       </div>
 
-      {/* FILTER */}
-      <Card
-        right={
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Tab
-              label="Doanh thu"
-              active={tab === "revenue"}
-              onClick={() => setTab("revenue")}
-            />
-            <Tab
-              label="Người dùng"
-              active={tab === "users"}
-              onClick={() => setTab("users")}
-            />
-            <Tab
-              label="Theo gói"
-              active={tab === "package"}
-              onClick={() => setTab("package")}
-            />
-          </div>
-        }
-      >
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <div className="space-y-1">
-            <div className="text-xs font-semibold text-slate-600">Đơn vị</div>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as any)}
-              disabled={tab === "package"}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:opacity-60"
-            >
-              <option value="DAY">Ngày</option>
-              <option value="MONTH">Tháng</option>
-            </select>
+      {/* TABS SELECTION */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Tab
+          label="Doanh thu"
+          icon={TrendingUp}
+          active={tab === "revenue"}
+          onClick={() => setTab("revenue")}
+        />
+        <Tab
+          label="Người dùng"
+          icon={Users}
+          active={tab === "users"}
+          onClick={() => setTab("users")}
+        />
+        <Tab
+          label="Theo gói"
+          icon={Package}
+          active={tab === "package"}
+          onClick={() => setTab("package")}
+        />
+      </div>
+
+      {/* FILTER CARD */}
+      <Card>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Đơn vị thời gian
+            </label>
+            <div className="relative">
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as any)}
+                disabled={tab === "package"}
+                className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0891b2]/20 disabled:bg-slate-50 disabled:text-slate-400"
+              >
+                <option value="DAY">Theo Ngày</option>
+                <option value="MONTH">Theo Tháng</option>
+              </select>
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <div className="text-xs font-semibold text-slate-600">Từ ngày</div>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-            />
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Từ ngày
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0891b2]/20"
+              />
+            </div>
           </div>
 
-          <div className="space-y-1">
-            <div className="text-xs font-semibold text-slate-600">Đến ngày</div>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-            />
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Đến ngày
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0891b2]/20"
+              />
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:col-span-2 xl:col-span-2 xl:flex xl:items-end">
+          <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-1 xl:col-span-2">
             <button
               onClick={applyFilters}
-              className="w-full rounded-xl bg-[#0891b2] px-4 py-2 text-sm font-semibold text-white hover:opacity-95"
+              disabled={loading}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#0891b2] px-4 py-2 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-50"
             >
-              Làm mới
+              <RefreshCcw size={16} className={loading ? "animate-spin" : ""} />
+              {loading ? "Đang tải..." : "Làm mới"}
             </button>
             <button
               onClick={resetFilters}
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+              className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
+              <RotateCcw size={16} />
               Đặt lại
             </button>
-          </div>
-
-          {/* ✅ GIỮ ô label nhưng chỉ hiện khi có label */}
-          <div className="flex items-end sm:col-span-2 xl:col-span-1">
-            <div className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 truncate">
-              {loading
-                ? "Đang tải..."
-                : stats?.label
-                ? stats.label
-                : " "}
-            </div>
           </div>
         </div>
       </Card>
 
-      {/* CHART + TABLE */}
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className="xl:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-base font-semibold text-slate-900">
-                {chartTitle}
+      {/* MAIN CONTENT GRID */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* CHART SECTION */}
+        <div className="lg:col-span-2">
+          <Card
+            title={chartTitle}
+            desc={applied.tab === "package" ? "Phân bổ doanh thu theo từng gói dịch vụ." : "Biểu đồ xu hướng tăng trưởng."}
+            right={
+              <div className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold uppercase text-slate-600">
+                <Calendar size={12} />
+                {applied.tab === "package" ? "Nhóm theo gói" : applied.type === "DAY" ? "Theo ngày" : "Theo tháng"}
               </div>
-              <div className="text-sm text-slate-500">
-                {applied.tab === "package"
-                  ? "So sánh doanh thu giữa các gói."
-                  : "Xu hướng theo thời gian."}
-              </div>
+            }
+          >
+            <div className="h-[300px] sm:h-[400px] w-full mt-2">
+              {loading ? (
+                <div className="flex h-full items-center justify-center rounded-2xl bg-slate-50 text-sm text-slate-400">
+                  Đang truy xuất dữ liệu...
+                </div>
+              ) : rows.length === 0 ? (
+                <div className="flex h-full items-center justify-center rounded-2xl bg-slate-50 text-sm text-slate-400">
+                  Không có dữ liệu trong khoảng thời gian này
+                </div>
+              ) : applied.tab === "package" ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#64748b" }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(val: number) => isMoney ? `${val / 1000}k` : String(val)} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }}
+                      formatter={(val: any) => [isMoney ? fmtMoney(Number(val)) : fmtNumber(Number(val)), chartTitle]}
+                    />
+                    <Bar dataKey="value" fill="#0891b2" radius={[4, 4, 0, 0]} barSize={40} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0891b2" stopOpacity={0.1} />
+                        <stop offset="95%" stopColor="#0891b2" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#64748b" }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#64748b" }} tickFormatter={(val: number) => isMoney ? `${val / 1000}k` : String(val)} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: "12px", border: "none", boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)" }}
+                      formatter={(val: any) => [isMoney ? fmtMoney(Number(val)) : fmtNumber(Number(val)), chartTitle]}
+                    />
+                    <Area type="monotone" dataKey="value" stroke="#0891b2" strokeWidth={3} fillOpacity={1} fill="url(#colorValue)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
             </div>
-
-            <span className="shrink-0 text-xs rounded-full bg-[#0891b2]/10 text-[#0891b2] px-2 py-1 font-semibold">
-              {chipLabel}
-            </span>
-          </div>
-
-          <div className="mt-4 h-[260px] sm:h-[360px] rounded-xl border border-slate-200 bg-white p-3">
-            {loading ? (
-              <div className="h-full rounded-xl bg-slate-50 flex items-center justify-center text-sm text-slate-500">
-                Đang tải...
+            {err && (
+              <div className="mt-4 flex items-center gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-600">
+                <span className="font-bold">Lỗi:</span> {err}
               </div>
-            ) : rows.length === 0 ? (
-              <div className="h-full rounded-xl bg-slate-50 flex items-center justify-center text-sm text-slate-500">
-                Không có dữ liệu để vẽ biểu đồ
-              </div>
-            ) : applied.tab === "package" ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ left: 8, right: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="value" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ left: 8, right: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="value" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
             )}
-          </div>
-
-          {err && (
-            <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-              <div className="font-semibold text-slate-900">Có lỗi</div>
-              <div className="mt-1 text-sm text-slate-600">{err}</div>
-            </div>
-          )}
+          </Card>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="text-base font-semibold text-slate-900">Bảng dữ liệu</div>
-          <div className="mt-1 text-sm text-slate-500">
-            {applied.tab === "package" ? "Doanh thu theo gói" : "Theo thời gian"}
-          </div>
-
-          <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr className="text-left text-slate-600">
-                  <th className="px-4 py-3 font-semibold">
-                    {applied.tab === "package" ? "Gói" : "Mốc"}
-                  </th>
-                  <th className="px-4 py-3 font-semibold text-right">Giá trị</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {loading && (
-                  <tr>
-                    <td className="px-4 py-4 text-slate-500" colSpan={2}>
-                      Đang tải...
-                    </td>
+        {/* TABLE SECTION */}
+        <div className="lg:col-span-1">
+          <Card
+            title="Chi tiết thực tế"
+            desc={applied.tab === "package" ? "Số liệu theo gói dịch vụ" : "Dữ liệu theo mốc thời gian"}
+          >
+            <div className="mt-2 overflow-hidden rounded-xl border border-slate-100">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <th className="px-4 py-3">{applied.tab === "package" ? "Gói" : "Thời gian"}</th>
+                    <th className="px-4 py-3 text-right">Giá trị</th>
                   </tr>
-                )}
-
-                {!loading && rows.length === 0 && (
-                  <tr>
-                    <td className="px-4 py-6 text-slate-500" colSpan={2}>
-                      Không có dữ liệu.
-                    </td>
-                  </tr>
-                )}
-
-                {!loading &&
-                  rows.map((r) => (
-                    <tr key={r.label} className="hover:bg-[#0891b2]/5">
-                      <td className="px-4 py-3 font-semibold text-slate-900">
-                        {r.label}
-                      </td>
-                      <td className="px-4 py-3 text-right text-slate-700">
-                        {new Intl.NumberFormat("vi-VN").format(r.value)}
-                      </td>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={2} className="px-4 py-8 text-center text-slate-400">Đang tải biểu mẫu...</td>
                     </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
+                  ) : rows.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="px-4 py-8 text-center text-slate-400">Không có dữ liệu</td>
+                    </tr>
+                  ) : (
+                    rows.map((r, i) => (
+                      <tr key={i} className="group hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 text-slate-600 font-medium">{r.label}</td>
+                        <td className="px-4 py-3 text-right font-bold text-slate-900">
+                          {isMoney ? fmtMoney(r.value) : fmtNumber(r.value)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {!loading && rows.length > 0 && (
+              <div className="mt-4 flex items-center justify-between rounded-xl bg-[#0891b2]/5 p-4 border border-[#0891b2]/10">
+                <div className="text-xs font-bold uppercase text-[#0891b2]">Tổng cộng</div>
+                <div className="text-lg font-black text-slate-900">
+                  {isMoney
+                    ? fmtMoney(rows.reduce((sum, r) => sum + r.value, 0))
+                    : fmtNumber(rows.reduce((sum, r) => sum + r.value, 0))
+                  }
+                </div>
+              </div>
+            )}
+          </Card>
         </div>
       </div>
     </div>

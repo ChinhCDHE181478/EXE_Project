@@ -2,21 +2,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  User, 
-  Bell, 
-  Clock, 
-  CreditCard, 
-  CheckCircle2, 
-  AlertCircle, 
+import {
+  User,
+  Bell,
+  Clock,
+  CreditCard,
+  CheckCircle2,
+  AlertCircle,
   Loader2,
   Calendar,
-  Download
+  Download,
+  LayoutDashboard
 } from "lucide-react";
+import { useAuth } from "../../AuthProvider";
 
 // --- CONFIG ---
 const BRAND = "#0891b2";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"; 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 // --- TYPES ---
 type TabKey = "account" | "subscription" | "alerts" | "history";
@@ -40,7 +42,7 @@ interface PaymentRecord {
 }
 
 // --- HELPER FUNCTIONS ---
-const formatCurrency = (amount: number) => 
+const formatCurrency = (amount: number) =>
   new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
 
 const formatDate = (dateString: string) => {
@@ -124,6 +126,8 @@ export default function ProfilePage() {
     id: 0
   });
 
+  const { user: authUser } = useAuth();
+
   // Load user từ localStorage
   useEffect(() => {
     try {
@@ -145,7 +149,7 @@ export default function ProfilePage() {
     <main className="bg-slate-50 min-h-screen pt-24 pb-12">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-12 gap-6">
-          
+
           {/* ===== SIDEBAR ===== */}
           <aside className="col-span-12 md:col-span-4 lg:col-span-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 sticky top-24">
@@ -181,18 +185,15 @@ export default function ProfilePage() {
                   icon={<CreditCard size={18} />}
                   label="Gói dịch vụ & Thanh toán"
                 />
-                <NavBtn
-                  active={tab === "alerts"}
-                  onClick={() => setTab("alerts")}
-                  icon={<Bell size={18} />}
-                  label="Thông báo giá"
-                />
-                <NavBtn
-                  active={tab === "history"}
-                  onClick={() => setTab("history")}
-                  icon={<Clock size={18} />}
-                  label="Lịch sử xem"
-                />
+
+                {authUser?.role === "ADMIN" && (
+                  <NavBtn
+                    active={false}
+                    onClick={() => window.location.href = "/admin"}
+                    icon={<LayoutDashboard size={18} />}
+                    label="Trang quản trị"
+                  />
+                )}
               </nav>
             </div>
           </aside>
@@ -231,11 +232,10 @@ function NavBtn({ active, onClick, label, icon }: { active: boolean; onClick: ()
   return (
     <button
       onClick={onClick}
-      className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition-all flex items-center gap-3 ${
-        active
-          ? "text-white shadow-md transform scale-[1.02]"
-          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-      }`}
+      className={`w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition-all flex items-center gap-3 ${active
+        ? "text-white shadow-md transform scale-[1.02]"
+        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+        }`}
       style={active ? { backgroundColor: BRAND } : undefined}
     >
       {icon}
@@ -317,7 +317,7 @@ function SubscriptionPanel({ userId }: { userId: number }) {
         const subRes = await fetch(`${API_URL}/subscriptions/status?userId=${userId}`);
         const subText = await subRes.text();
         const subJson = parseJsonSafe(subText);
-        
+
         const payRes = await fetch(`${API_URL}/payments/history?userId=${userId}&page=0&size=10`);
         const payText = await payRes.text();
         const payJson = parseJsonSafe(payText);
@@ -354,7 +354,7 @@ function SubscriptionPanel({ userId }: { userId: number }) {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
-      
+
       {/* 1. Trạng thái Gói cước */}
       <Section title="Gói dịch vụ hiện tại">
         {!subData || !isActiveSubscription ? (
@@ -364,7 +364,7 @@ function SubscriptionPanel({ userId }: { userId: number }) {
             </div>
             <h4 className="text-slate-900 font-bold mb-1">Chưa đăng ký gói nào</h4>
             <p className="text-sm text-slate-500 mb-4">Nâng cấp lên Premium để mở khóa tính năng AI.</p>
-            <button 
+            <button
               className="text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all active:scale-95"
               style={{ backgroundColor: BRAND }}
               onClick={() => window.location.href = "/#pricing"}
@@ -377,7 +377,7 @@ function SubscriptionPanel({ userId }: { userId: number }) {
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <CreditCard size={100} color={BRAND} />
             </div>
-            
+
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-4">
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 flex items-center gap-1">
@@ -394,7 +394,7 @@ function SubscriptionPanel({ userId }: { userId: number }) {
               </p>
 
               <div className="flex gap-3">
-                <button 
+                <button
                   className="px-4 py-2 border border-slate-200 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50"
                   onClick={() => window.location.href = "/#pricing"}
                 >
@@ -435,11 +435,10 @@ function SubscriptionPanel({ userId }: { userId: number }) {
                     </td>
                     <td className="py-4 font-bold text-slate-900">{formatCurrency(p.amount)}</td>
                     <td className="py-4">
-                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-                        p.status === "SUCCESS" ? "bg-green-100 text-green-700" :
+                      <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${p.status === "SUCCESS" ? "bg-green-100 text-green-700" :
                         p.status === "PENDING" ? "bg-amber-100 text-amber-700" :
-                        "bg-red-100 text-red-700"
-                      }`}>
+                          "bg-red-100 text-red-700"
+                        }`}>
                         {p.status}
                       </span>
                     </td>
@@ -465,7 +464,7 @@ function AlertsPanel() {
         <p className="text-slate-600 text-sm mb-4">
           Bạn chưa bật thông báo giá nào. Hãy tìm chuyến bay và bật theo dõi để nhận email khi giá giảm.
         </p>
-        <button 
+        <button
           className="px-5 py-2 rounded-lg text-white text-sm font-bold shadow-sm hover:opacity-90"
           style={{ backgroundColor: BRAND }}
         >
@@ -487,7 +486,7 @@ function HistoryPanel() {
         <p className="text-slate-600 text-sm mb-4">
           Chưa có lịch sử tìm kiếm gần đây.
         </p>
-        <button 
+        <button
           className="px-5 py-2 rounded-lg border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50"
         >
           Khám phá ngay

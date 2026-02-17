@@ -45,7 +45,11 @@ export default function FlightResultsPane({
     <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 items-start">
       {/* Sidebar Lọc bên trái */}
       <aside className="sticky top-24 hidden lg:block">
-        <FlightFiltersSidebar offers={offers} value={filters} onChange={setFilters} />
+        <FlightFiltersSidebar
+          offers={offers}
+          value={filters}
+          onChange={(patch) => setFilters(prev => ({ ...prev, ...patch }))}
+        />
       </aside>
 
       {/* Danh sách kết quả bên phải */}

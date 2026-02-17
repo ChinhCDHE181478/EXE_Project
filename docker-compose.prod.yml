@@ -1,0 +1,187 @@
+# ================================================================
+# DOCKER COMPOSE - PRODUCTION CONFIGURATION
+# ================================================================
+# Chạy 4 services: nginx (reverse proxy), backend, frontend, agents
+# Database: Supabase PostgreSQL (external)
+# Cache: Redis KHÔNG dùng
+#
+# Cách chạy: docker-compose -f docker-compose.prod.yml up -d --build
+# ================================================================
+
+version: '3.8'
+
+services:
+  # ==========================================
+  # NGINX - Reverse Proxy + SSL
+  # ==========================================
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: vivuplan-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
+      - agents
+    networks:
+      - app-network
+    restart: unless-stopped
+    volumes:
+      # SSL certificates từ Let's Encrypt
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/lib/letsencrypt:/var/lib/letsencrypt:ro
+
+  # ==========================================
+  # BACKEND - Spring Boot (Java 21)
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: vivuplan-backend
+    environment:
+      # Database (Supabase)
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - DATABASE_USERNAME=${DATABASE_USERNAME}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      # JWT
+      - SIGNER_KEY=${SIGNER_KEY}
+      - REFRESH_SIGNER_KEY=${REFRESH_SIGNER_KEY}
+      # Email
+      - MAIL=${MAIL}
+      - MAILPASS=${MAILPASS}
+      # URLs (thay YOUR_DOMAIN_HERE)
+      - FRONTEND_URL=${FRONTEND_URL}
+      - PAYOS_WEBHOOK_URL=${PAYOS_WEBHOOK_URL}
+      # External APIs
+      - RAPIDAPI_BOOKINGCOM_URL=${RAPIDAPI_BOOKINGCOM_URL}
+      - X_RAPIDAPI_HOST=${X_RAPIDAPI_HOST}
+      - X_RAPIDAPI_KEY=${X_RAPIDAPI_KEY}
+      - X_RAPIDAPI_SKYSCANNERV3_URL=${X_RAPIDAPI_SKYSCANNERV3_URL}
+      - X_RAPIDAPI_SKYSCANNERV3_HOST=${X_RAPIDAPI_SKYSCANNERV3_HOST}
+      - X_RAPIDAPI_SKYSCANNERV3_KEY=${X_RAPIDAPI_SKYSCANNERV3_KEY}
+      # Google OAuth
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      # PayOS
+      - PAYOS_CLIENT_ID=${PAYOS_CLIENT_ID}
+      - PAYOS_API_KEY=${PAYOS_API_KEY}
+      - PAYOS_CHECKSUM_KEY=${PAYOS_CHECKSUM_KEY}
+    ports:
+      - "8080:8080"
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+
+  # ==========================================
+  # FRONTEND - Next.js
+  # ==========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: vivuplan-frontend
+    environment:
+      # API URLs (Docker internal hoặc external qua Nginx)
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_AGENT_API=${NEXT_PUBLIC_AGENT_API}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+      - agents
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # ==========================================
+  # AGENTS - FastAPI + LangChain
+  # ==========================================
+  agents:
+    build:
+      context: ./agents
+      dockerfile: Dockerfile.prod
+    container_name: vivuplan-agents
+    environment:
+      # Environment
+      - ENVIRONMENT=production
+      - PORT=4000
+      # Backend URL
+      - BACKEND_API_URL=${BACKEND_API_URL}
+      # AI Model APIs (PHẢI ROTATE - keys cũ bị lộ)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      # Model configs
+      - LLM_MODEL=${LLM_MODEL:-gpt-4o-mini}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash-exp}
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
+      # Database (Supabase for Langraph)
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      # External APIs
+      - RAPIDAPI_BOOKINGCOM_URL=${RAPIDAPI_BOOKINGCOM_URL}
+      - X_RAPIDAPI_HOST=${X_RAPIDAPI_HOST}
+      - X_RAPIDAPI_KEY=${X_RAPIDAPI_KEY}
+    ports:
+      - "4000:4000"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+networks:
+  app-network:
+    driver: bridge
+
+# ================================================================
+# LƯU Ý:
+# 1. Tạo file .env.production từ template trước khi chạy
+# 2. Thay tất cả YOUR_DOMAIN_HERE bằng domain thật
+# 3. Rotate API keys trong agents (keys cũ đã bị lộ)
+# 4. Chạy: docker-compose -f docker-compose.prod.yml up -d --build
+# 5. Xem logs: docker-compose -f docker-compose.prod.yml logs -f
+# ================================================================

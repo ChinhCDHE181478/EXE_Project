@@ -9,17 +9,12 @@ export default function Faq() {
           {
             title: "VivuPlan hoạt động như thế nào?",
             content:
-              "VivuPlan là công cụ so sánh giúp bạn tìm vé máy bay/khách sạn/thuê xe giá tốt từ hàng trăm nhà cung cấp. Bạn đặt trực tiếp tại nơi cung cấp sau khi chọn.",
+              "VivuPlan là công cụ so sánh giúp bạn tìm vé máy bay/khách sạn giá tốt trên toàn thế giới. Bạn đặt trực tiếp tại nơi cung cấp sau khi chọn.",
           },
           {
-            title: "Có thể tìm khách sạn và xe thuê trên VivuPlan không?",
+            title: "Có thể tìm khách sạn và vé máy bay trên VivuPlan không?",
             content:
-              "Có. Vào tab Khách sạn hoặc Thuê xe để so sánh nhanh, nhiều bộ lọc, chính sách hủy linh hoạt.",
-          },
-          {
-            title: "Thông báo giá là gì?",
-            content:
-              "Bạn có thể bật thông báo để theo dõi giá và nhận email khi giá giảm – cực kỳ tiện nếu đang canh deal.",
+              "Có.Vào tab Khách sạn hoặc Vé máy bay để tìm kiếm nhanh, nhiều bộ lọc, chính sách hủy linh hoạt.",
           },
           {
             title: "Khi nào nên đặt vé?",

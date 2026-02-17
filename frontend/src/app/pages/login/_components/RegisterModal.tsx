@@ -105,7 +105,7 @@ export default function RegisterModal({
         const parsed = JSON.parse(raw);
         resolvedId = resolvedId ?? parsed?.id ?? parsed?.userId ?? parsed?.user_id ?? null;
       }
-    } catch {}
+    } catch { }
 
     const sessionData: Record<string, any> = { displayName: name, email: emailValue };
     if (resolvedId != null) sessionData.id = resolvedId;
@@ -118,7 +118,7 @@ export default function RegisterModal({
     setErr("");
     setLoading(true);
     try {
-      await authService.otpRegister({ email, type: "REGISTER" });
+      await authService.otpLoginSend(email);
       setStep("otp");
       startCountdown();
     } catch (e: any) {
@@ -132,7 +132,7 @@ export default function RegisterModal({
     setErr("");
     setLoading(true);
     try {
-      const data = await authService.otpVerify({ email, otp, type: "REGISTER" });
+      const data = await authService.otpLoginVerify({ email, otp });
 
       // lưu user/token
       const displayName = data?.user?.displayName || data?.user?.name;
@@ -291,11 +291,10 @@ export default function RegisterModal({
                       type="button"
                       onClick={resendOTP}
                       disabled={resendIn > 0 || loading}
-                      className={`${
-                        resendIn > 0 || loading
+                      className={`${resendIn > 0 || loading
                           ? "text-slate-400"
                           : "text-[#0891b2] hover:underline"
-                      }`}
+                        }`}
                     >
                       {resendIn > 0 ? `Gửi lại (${resendIn}s)` : "Gửi lại mã"}
                     </button>

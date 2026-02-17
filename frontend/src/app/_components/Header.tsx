@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-type UserSession = { displayName: string; email: string };
+import { useAuth } from "../AuthProvider";
 
 export default function Header() {
   const pathname = usePathname();
   const shouldHide = pathname?.startsWith("/admin");
   const [mounted, setMounted] = useState(false);
+  const { user, logout: authLogout } = useAuth();
 
   // State theo dõi scroll
   const [isScrolled, setIsScrolled] = useState(false);
@@ -29,20 +30,9 @@ export default function Header() {
   const [userOpen, setUserOpen] = useState(false);
   const userRef = useRef<HTMLDivElement | null>(null);
 
-  const [user, setUser] = useState<UserSession | null>(null);
-
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem("vivuplan_user");
-      setUser(raw ? (JSON.parse(raw) as UserSession) : null);
-    } catch {
-      setUser(null);
-    }
-  }, [pathname]);
 
   // Lắng nghe scroll để đổi style
   useEffect(() => {
@@ -56,13 +46,7 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const clearClientSession = () => {
-    localStorage.removeItem("vivuplan_user");
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    localStorage.removeItem("token");
-    sessionStorage.removeItem("vivu_draft");
-  };
+
 
   const logout = async () => {
     try {
@@ -71,10 +55,8 @@ export default function Header() {
         credentials: "include",
         cache: "no-store",
       });
-    } catch {}
+    } catch { }
 
-    clearClientSession();
-    setUser(null);
     setUserOpen(false);
     setOpen(false);
     window.dispatchEvent(new Event("logout"));
@@ -132,10 +114,9 @@ export default function Header() {
     <header
       className={`
         fixed top-0 z-[80] w-full transition-all duration-300
-        ${
-          isTransparent
-            ? "bg-transparent shadow-none" // Trong suốt hoàn toàn
-            : "bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75 shadow-sm" // Trắng mờ như cũ
+        ${isTransparent
+          ? "bg-transparent shadow-none" // Trong suốt hoàn toàn
+          : "bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75 shadow-sm" // Trắng mờ như cũ
         }
       `}
     >
@@ -159,15 +140,14 @@ export default function Header() {
             <Link
               key={n.href}
               href={n.href}
-              className={`text-[15px] transition-colors font-medium ${
-                active(n.href)
-                  ? isTransparent
-                    ? "text-cyan-300" // Active màu sáng khi nền tối
-                    : "text-[#0891b2]" // Active màu xanh khi nền trắng
-                  : isTransparent
+              className={`text-[15px] transition-colors font-medium ${active(n.href)
+                ? isTransparent
+                  ? "text-cyan-300" // Active màu sáng khi nền tối
+                  : "text-[#0891b2]" // Active màu xanh khi nền trắng
+                : isTransparent
                   ? "text-white/90 hover:text-white" // Text trắng khi nền tối
                   : "text-slate-800 hover:text-[#0891b2]" // Text đen khi nền trắng
-              }`}
+                }`}
             >
               {n.label}
             </Link>
@@ -182,11 +162,10 @@ export default function Header() {
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
               aria-label="Mở menu"
-              className={`p-2 rounded-lg border transition-colors ${
-                isTransparent
-                  ? "border-white/30 bg-black/20 text-white hover:bg-black/30"
-                  : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-              }`}
+              className={`p-2 rounded-lg border transition-colors ${isTransparent
+                ? "border-white/30 bg-black/20 text-white hover:bg-black/30"
+                : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
+                }`}
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor">
                 {open ? (
@@ -210,11 +189,10 @@ export default function Header() {
                       <Link
                         key={n.href}
                         href={n.href}
-                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${
-                          active(n.href)
-                            ? "bg-[#0891b2]/10 text-[#0891b2]"
-                            : "text-slate-800 hover:bg-slate-50"
-                        }`}
+                        className={`px-3 py-2 rounded-lg text-sm transition-colors ${active(n.href)
+                          ? "bg-[#0891b2]/10 text-[#0891b2]"
+                          : "text-slate-800 hover:bg-slate-50"
+                          }`}
                       >
                         {n.label}
                       </Link>
@@ -226,9 +204,6 @@ export default function Header() {
                   {user ? (
                     <div className="mt-1 grid gap-1">
                       <div className="px-3 py-2 rounded-lg bg-slate-50">
-                        <div className="text-sm font-medium text-slate-900">
-                          {user.displayName}
-                        </div>
                         <div className="text-xs text-slate-600 truncate">
                           {user.email}
                         </div>
@@ -268,15 +243,14 @@ export default function Header() {
               <>
                 <button
                   onClick={() => setUserOpen((v) => !v)}
-                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border transition-colors ${
-                    isTransparent
-                      ? "border-white/30 text-white hover:bg-white/10"
-                      : "border-slate-200 text-slate-800 hover:text-[#0891b2] hover:border-[#0891b2]"
-                  }`}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border transition-colors ${isTransparent
+                    ? "border-white/30 text-white hover:bg-white/10"
+                    : "border-slate-200 text-slate-800 hover:text-[#0891b2] hover:border-[#0891b2]"
+                    }`}
                   title={user.email}
                 >
-                  <span className="max-w-[140px] truncate">
-                    {user.displayName}
+                  <span className="text-sm truncate max-w-[150px]">
+                    {user.email}
                   </span>
                   <svg
                     viewBox="0 0 24 24"
@@ -291,9 +265,6 @@ export default function Header() {
                   <div className="absolute right-0 mt-2 w-[240px] rounded-xl border bg-white shadow-lg ring-1 ring-black/5 overflow-hidden z-[90]">
                     <div className="p-2">
                       <div className="px-3 py-2 rounded-lg bg-slate-50">
-                        <div className="text-sm font-medium text-slate-900">
-                          {user.displayName}
-                        </div>
                         <div className="text-xs text-slate-600 truncate">
                           {user.email}
                         </div>
@@ -320,11 +291,10 @@ export default function Header() {
             ) : (
               <Link
                 href="/pages/login"
-                className={`inline-flex px-3 py-1.5 rounded-md border transition-colors ${
-                  isTransparent
-                    ? "border-white/30 text-white hover:bg-white/10 hover:border-white"
-                    : "border-slate-200 text-slate-800 hover:text-[#0891b2] hover:border-[#0891b2]"
-                }`}
+                className={`inline-flex px-3 py-1.5 rounded-md border transition-colors ${isTransparent
+                  ? "border-white/30 text-white hover:bg-white/10 hover:border-white"
+                  : "border-slate-200 text-slate-800 hover:text-[#0891b2] hover:border-[#0891b2]"
+                  }`}
               >
                 Đăng nhập
               </Link>

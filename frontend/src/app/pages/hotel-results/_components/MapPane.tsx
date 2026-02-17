@@ -251,13 +251,13 @@ export default function MapPane({
         onHoverHotel(h.id);
         try {
           m.openPopup();
-        } catch {}
+        } catch { }
       });
       m.on("mouseout", () => {
         onHoverHotel(null);
         try {
           m.closePopup();
-        } catch {}
+        } catch { }
       });
       m.on("click", () => {
         // mimic Skyscanner: clicking a price selects the hotel in the list
@@ -265,7 +265,7 @@ export default function MapPane({
         onHoverHotel(h.id);
         try {
           m.openPopup();
-        } catch {}
+        } catch { }
       });
       // Keep the map mostly still (no autopan). We'll do a gentle pan only when needed.
       m.bindPopup(popupCardHtml(h), { closeButton: true, maxWidth: 320, autoPan: false });
@@ -305,7 +305,7 @@ export default function MapPane({
     const t = setTimeout(() => {
       try {
         m.invalidateSize?.();
-      } catch {}
+      } catch { }
     }, 50);
     return () => clearTimeout(t);
   }, [expanded]);
@@ -360,7 +360,7 @@ export default function MapPane({
       className={
         expanded
           ? "fixed inset-0 z-[100] bg-white shadow-2xl ring-1 ring-black/10"
-          : "bg-white rounded-2xl shadow-xl ring-1 ring-black/5 sticky top-20 h-[calc(100vh-6rem)] overflow-hidden"
+          : "bg-white rounded-2xl shadow-xl ring-1 ring-black/5 sticky top-[72px] h-[calc(100vh-10rem)] overflow-hidden"
       }
     >
       <Script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" strategy="afterInteractive" />
