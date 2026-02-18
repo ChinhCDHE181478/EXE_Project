@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { createPortal } from "react-dom";
 import {
   Utensils,
   Calendar,
@@ -147,14 +148,27 @@ export default function VivuplanPremiumApp() {
 
   const hasProcessedInitialPrompt = useRef(false);
 
-  // prompt mẫu
+  // --- STATE QUẢN LÝ FORM & LỖI ---
   const [promptForm, setPromptForm] = useState({
+    origin: "",
     destination: "",
-    duration: "",
+    travelers: "",
+    startDate: "", 
+    endDate: "",   
     budget: "",
-    companions: "",
+    hotelBudget: "",
+    foodBudget: "",
+    transportBudget: "",
+    attractionBudget: "",
+    transportToDestination: "",
+    localTransport: "",
+    spendLevel: "",
     interests: "",
   });
+
+  const [errors, setErrors] = useState<{ startDate?: string; endDate?: string; general?: string }>({});
+  const [isSpendOpen, setIsSpendOpen] = useState(false);
+  // --------------------------------
 
   const [isAuthed, setIsAuthed] = useState(false);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
@@ -335,16 +349,90 @@ export default function VivuplanPremiumApp() {
 
   const handleSend = () => executeSend(inputText.trim());
 
+  // --- HÀM XỬ LÝ SUBMIT VỚI VALIDATE ---
   const handlePromptSubmit = () => {
-    const parts = [];
-    if (promptForm.destination) parts.push(`Đi ${promptForm.destination}`);
-    if (promptForm.duration) parts.push(`trong ${promptForm.duration}`);
-    if (promptForm.budget) parts.push(`ngân sách ${promptForm.budget}`);
-    if (promptForm.companions) parts.push(`đi cùng ${promptForm.companions}`);
-    if (promptForm.interests) parts.push(`thích ${promptForm.interests}`);
+    // 1. Reset lỗi cũ
+    setErrors({});
+    let hasError = false;
+    const newErrors: any = {};
+
+    // 2. Validate điểm đi/đến (Check trống)
+    if (!promptForm.origin.trim()) {
+       // Có thể thêm báo lỗi nếu cần
+    }
+    if (!promptForm.destination.trim()) {
+       // Có thể thêm báo lỗi nếu cần
+    }
+
+    // 3. Validate Ngày tháng
+    if (!promptForm.startDate) {
+      newErrors.startDate = "Vui lòng chọn ngày đi.";
+      hasError = true;
+    }
+    if (!promptForm.endDate) {
+      newErrors.endDate = "Vui lòng chọn ngày về.";
+      hasError = true;
+    }
+
+    if (promptForm.startDate && promptForm.endDate) {
+      const start = new Date(promptForm.startDate);
+      const end = new Date(promptForm.endDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (start < today) {
+        newErrors.startDate = "Ngày đi không được ở quá khứ.";
+        hasError = true;
+      }
+
+      if (end < start) {
+        newErrors.endDate = "Ngày về phải sau hoặc bằng ngày đi.";
+        hasError = true;
+      }
+    }
+
+    // Nếu có lỗi thì cập nhật state và dừng hàm
+    if (hasError) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // --- NẾU KHÔNG CÓ LỖI THÌ TIẾP TỤC TẠO PROMPT ---
+    const parts = ["Lập kế hoạch du lịch"];
+    
+    if (promptForm.origin && promptForm.destination) {
+      parts.push(`từ ${promptForm.origin} đến ${promptForm.destination}`);
+    } else if (promptForm.destination) {
+      parts.push(`đến ${promptForm.destination}`);
+    } else if (promptForm.origin) {
+      parts.push(`khởi hành từ ${promptForm.origin}`);
+    }
+
+    if (promptForm.travelers) parts.push(`${promptForm.travelers} người tham gia`);
+
+    // Xử lý ngày tháng vào prompt
+    if (promptForm.startDate && promptForm.endDate) {
+      parts.push(`thời gian từ ngày ${promptForm.startDate} đến ngày ${promptForm.endDate}`);
+    }
+
+    if (promptForm.budget) parts.push(`tổng ngân sách ${promptForm.budget} VND`);
+    if (promptForm.hotelBudget) parts.push(`chi phí khách sạn khoảng ${promptForm.hotelBudget} VND`);
+    if (promptForm.foodBudget) parts.push(`chi phí ăn uống khoảng ${promptForm.foodBudget} VND`);
+    if (promptForm.transportBudget) parts.push(`chi phí di chuyển khoảng ${promptForm.transportBudget} VND`);
+    if (promptForm.attractionBudget) parts.push(`chi phí vé tham quan khoảng ${promptForm.attractionBudget} VND`);
+    if (promptForm.transportToDestination) parts.push(`phương tiện đến điểm du lịch: ${promptForm.transportToDestination}`);
+    if (promptForm.localTransport) parts.push(`phương tiện đi lại tại địa điểm: ${promptForm.localTransport}`);
+    if (promptForm.spendLevel) parts.push(`mức chi tiêu mong muốn: ${promptForm.spendLevel}`);
+    if (promptForm.interests) parts.push(`sở thích ưu tiên: ${promptForm.interests}`);
+
     const finalPrompt = parts.join(", ");
-    if (finalPrompt) { executeSend(finalPrompt); setIsPromptPopoverOpen(false); }
+    
+    if (finalPrompt) {
+      executeSend(finalPrompt);
+      setIsPromptPopoverOpen(false); // Đóng modal sau khi gửi thành công
+    }
   };
+  // -------------------------------------
 
   const resetToLoggedOutState = () => {
     setIsAuthed(false); setResolvedUserId(null); setAllowGuestDemo(false);
@@ -363,7 +451,6 @@ export default function VivuplanPremiumApp() {
       const promptFromUrl = searchParams.get("prompt");
       let token = getTokenFromStorage();
 
-      // Login flow can write token slightly later after redirect.
       if (!token) {
         for (let i = 0; i < 8 && !token; i++) {
           await new Promise((resolve) => setTimeout(resolve, 150));
@@ -523,7 +610,7 @@ export default function VivuplanPremiumApp() {
             </div>
 
             {/* Footer Input */}
-            <div className="bg-white border-t border-slate-50 shrink-0 relative z-20 flex flex-col">
+            <div className={`bg-white border-t border-slate-50 shrink-0 relative ${isPromptPopoverOpen ? "z-[120]" : "z-20"} flex flex-col`}>
               {(itineraryData || hotelData) && (
                 <div className="px-4 py-2 flex gap-2 overflow-x-auto no-scrollbar justify-center border-b border-slate-50 bg-slate-50/50">
                   {itineraryData && <button onClick={() => setViewMode("itinerary")} className="flex items-center gap-2 px-5 py-2 bg-[#0056D2] text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-md hover:bg-blue-700 active:scale-95 transition-all whitespace-nowrap"><Calendar size={14} /> Xem Lịch Trình</button>}
@@ -531,7 +618,192 @@ export default function VivuplanPremiumApp() {
                 </div>
               )}
               <div className="p-3 md:p-6 relative">
-                {isPromptPopoverOpen && (<div className="absolute bottom-full left-0 w-full px-3 md:px-6 pb-2 animate-in slide-in-from-bottom-4 z-50"><div className="max-w-3xl mx-auto bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 relative"><button onClick={() => setIsPromptPopoverOpen(false)} className="absolute top-3 right-3 text-slate-300 hover:text-red-500"><X size={16} /></button><h3 className="text-xs font-black italic uppercase text-[#0056D2] mb-3 flex items-center gap-2"><Sparkle size={14} /> Tạo nhanh</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-3"><input value={promptForm.destination} onChange={(e) => setPromptForm({ ...promptForm, destination: e.target.value })} className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-xs font-bold" placeholder="Đi đâu?" /><input value={promptForm.duration} onChange={(e) => setPromptForm({ ...promptForm, duration: e.target.value })} className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-xs font-bold" placeholder="Mấy ngày?" /></div><button onClick={handlePromptSubmit} className="w-full mt-3 bg-[#0056D2] text-white py-2.5 rounded-lg text-[10px] font-black uppercase hover:bg-blue-700">Tạo lịch trình</button></div></div>)}
+                
+                {/* --- PORTAL MODAL CHÍNH --- */}
+                {isPromptPopoverOpen && mounted && createPortal(
+                  <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200">
+
+                    {/* Lớp nền tối (Backdrop) */}
+                    <div
+                      className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity"
+                      onClick={() => setIsPromptPopoverOpen(false)}
+                    />
+
+                    {/* Khung nội dung chính */}
+                    <div className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] md:h-auto animate-in zoom-in-95 duration-200 border border-slate-200">
+
+                      {/* Header của Modal */}
+                      <div className="p-4 md:p-5 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                        <h3 className="text-sm font-black italic uppercase text-[#0056D2] flex items-center gap-2">
+                          <Sparkle size={16} /> Thiết lập chuyến đi
+                        </h3>
+                        <button
+                          onClick={() => setIsPromptPopoverOpen(false)}
+                          className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-red-50 hover:text-red-500 transition-colors"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+
+                      {/* Body cuộn được */}
+                      <div className="flex-1 overflow-y-auto p-4 md:p-5 custom-scrollbar bg-slate-50/50">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                          <input
+                            value={promptForm.origin}
+                            onChange={(e) => setPromptForm({ ...promptForm, origin: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm"
+                            placeholder="Điểm xuất phát (bắt buộc)"
+                          />
+                          <input
+                            value={promptForm.destination}
+                            onChange={(e) => setPromptForm({ ...promptForm, destination: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm"
+                            placeholder="Điểm đến chính (bắt buộc)"
+                          />
+                          <input
+                            value={promptForm.travelers}
+                            onChange={(e) => setPromptForm({ ...promptForm, travelers: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm"
+                            placeholder="Số người tham gia"
+                          />
+                          <input
+                            value={promptForm.budget}
+                            onChange={(e) => setPromptForm({ ...promptForm, budget: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm"
+                            placeholder="Tổng ngân sách mong muốn (VND)"
+                          />
+
+                          {/* --- CẶP INPUT NGÀY THÁNG CÓ VALIDATION --- */}
+                          <div className="flex gap-3 md:gap-4 items-start">
+                            {/* Cột Ngày đi */}
+                            <div className="w-1/2 flex flex-col">
+                              <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider ml-1">
+                                Ngày đi
+                              </label>
+                              <input
+                                type="date"
+                                value={promptForm.startDate}
+                                onChange={(e) => {
+                                  setPromptForm({ ...promptForm, startDate: e.target.value });
+                                  if (errors.startDate) setErrors({ ...errors, startDate: undefined }); // Xóa lỗi khi người dùng chọn lại
+                                }}
+                                className={`w-full bg-white border rounded-xl px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm text-slate-600 ${
+                                  errors.startDate 
+                                    ? "border-red-500 focus:border-red-500 bg-red-50" 
+                                    : "border-slate-200 focus:border-blue-500"
+                                }`}
+                              />
+                              {/* Hiển thị lỗi ngày đi */}
+                              {errors.startDate && (
+                                <span className="text-[10px] text-red-500 font-bold mt-1 ml-1 animate-in slide-in-from-top-1">
+                                  {errors.startDate}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Cột Ngày về */}
+                            <div className="w-1/2 flex flex-col">
+                              <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider ml-1">
+                                Ngày về
+                              </label>
+                              <input
+                                type="date"
+                                value={promptForm.endDate}
+                                onChange={(e) => {
+                                  setPromptForm({ ...promptForm, endDate: e.target.value });
+                                  if (errors.endDate) setErrors({ ...errors, endDate: undefined }); // Xóa lỗi khi người dùng chọn lại
+                                }}
+                                className={`w-full bg-white border rounded-xl px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm text-slate-600 ${
+                                  errors.endDate 
+                                    ? "border-red-500 focus:border-red-500 bg-red-50" 
+                                    : "border-slate-200 focus:border-blue-500"
+                                }`}
+                              />
+                              {/* Hiển thị lỗi ngày về */}
+                              {errors.endDate && (
+                                <span className="text-[10px] text-red-500 font-bold mt-1 ml-1 animate-in slide-in-from-top-1">
+                                  {errors.endDate}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {/* ----------------------------------------------- */}
+
+                          <input
+                            value={promptForm.hotelBudget}
+                            onChange={(e) => setPromptForm({ ...promptForm, hotelBudget: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm"
+                            placeholder="Ngân sách khách sạn (VND)"
+                          />
+                          <input
+                            value={promptForm.foodBudget}
+                            onChange={(e) => setPromptForm({ ...promptForm, foodBudget: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm"
+                            placeholder="Ngân sách ăn uống (VND)"
+                          />
+                          <input
+                            value={promptForm.transportBudget}
+                            onChange={(e) => setPromptForm({ ...promptForm, transportBudget: e.target.value })}
+                            className="w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm"
+                            placeholder="Ngân sách di chuyển (VND)"
+                          />
+
+                          {/* CUSTOM DROPDOWN MỨC CHI TIÊU */}
+                          <div className="relative">
+                            <button
+                              onClick={() => setIsSpendOpen(!isSpendOpen)}
+                              className={`w-full flex items-center justify-between bg-white border rounded-xl px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm ${isSpendOpen ? 'border-blue-500 ring-1 ring-blue-200' : 'border-slate-200'}`}
+                            >
+                              <span className={promptForm.spendLevel ? "text-slate-900" : "text-slate-400"}>
+                                {promptForm.spendLevel || "Mức độ chi tiêu mong muốn"}
+                              </span>
+                              <ChevronRight size={14} className={`text-slate-400 transition-transform ${isSpendOpen ? "rotate-90" : ""}`} />
+                            </button>
+                            
+                            {isSpendOpen && (
+                              <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 max-h-[200px] overflow-y-auto">
+                                {["Tiết kiệm", "Tiêu chuẩn", "Thoải mái", "Sang trọng"].map((level) => (
+                                  <button
+                                    key={level}
+                                    onClick={() => {
+                                      setPromptForm({ ...promptForm, spendLevel: level });
+                                      setIsSpendOpen(false);
+                                    }}
+                                    className="w-full text-left px-4 py-3 text-xs font-bold hover:bg-blue-50 hover:text-[#0056D2] transition-colors flex items-center justify-between border-b border-slate-50 last:border-0"
+                                  >
+                                    {level}
+                                    {promptForm.spendLevel === level && <CheckCircle2 size={14} className="text-[#0056D2]" />}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <input
+                            value={promptForm.interests}
+                            onChange={(e) => setPromptForm({ ...promptForm, interests: e.target.value })}
+                            className="md:col-span-2 w-full bg-white border border-slate-200 focus:border-blue-500 rounded-xl px-4 py-3 text-xs font-bold outline-none transition-all shadow-sm"
+                            placeholder="Sở thích (ví dụ: thích chụp ảnh, không thích leo núi, ăn chay...)"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Footer Modal */}
+                      <div className="p-4 md:p-5 border-t border-slate-100 bg-white shrink-0">
+                        <button
+                          onClick={handlePromptSubmit}
+                          className="w-full py-3.5 bg-[#0056D2] text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-200 transition-all active:scale-[0.98]"
+                        >
+                          Tạo lịch trình ngay
+                        </button>
+                      </div>
+                      
+                    </div>
+                  </div>,
+                  document.body
+                )}
+                {/* --- KẾT THÚC MODAL --- */}
+
                 <div className="max-w-3xl mx-auto flex items-end gap-2"><button onClick={() => setIsPromptPopoverOpen(!isPromptPopoverOpen)} className={`h-12 w-12 rounded-2xl flex flex-col items-center justify-center border ${isPromptPopoverOpen ? "bg-blue-50 border-blue-200 text-[#0056D2]" : "bg-slate-50 border-transparent text-slate-400 hover:text-[#0056D2]"}`}><FilePenLine size={18} /></button><div className="relative flex-1"><textarea value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }} className="w-full bg-slate-50 border-none rounded-2xl p-4 pr-12 text-[13px] h-12 md:h-14 resize-none outline-none focus:bg-white focus:ring-1 focus:ring-blue-200 transition-all font-medium shadow-inner" placeholder="Nhập yêu cầu..." /><button onClick={handleSend} disabled={isLoading} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 bg-[#0056D2] text-white rounded-xl flex items-center justify-center hover:bg-blue-700 disabled:opacity-50"><Send size={16} /></button></div></div>
                 {!subStatus.active && (<div className="max-w-3xl mx-auto mt-2 text-[10px] text-slate-400 flex items-center justify-between"><span>Chưa kích hoạt gói — tạo xong sẽ yêu cầu mua gói.</span><button onClick={() => setShowPaywall(true)} className="text-[#0056D2] font-black hover:underline">Xem gói</button></div>)}
               </div>
@@ -698,7 +970,7 @@ export default function VivuplanPremiumApp() {
 
                     <div className="md:hidden w-full h-[300px] rounded-[2.5rem] overflow-hidden border border-slate-100 shadow-sm mt-8 relative">
                        <div className="absolute inset-0 w-full h-full">
-                          <PlacesMapPane places={places.filter((p) => p.day === itineraryData.itinerary[selectedDayIdx!].date_)} />
+                         <PlacesMapPane places={places.filter((p) => p.day === itineraryData.itinerary[selectedDayIdx!].date_)} />
                        </div>
                     </div>
                   </div>
