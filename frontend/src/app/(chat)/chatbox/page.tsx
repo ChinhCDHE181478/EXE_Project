@@ -157,6 +157,7 @@ export default function VivuplanPremiumApp() {
   });
 
   const [isAuthed, setIsAuthed] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [resolvedUserId, setResolvedUserId] = useState<number | null>(null);
   const [showLoginGate, setShowLoginGate] = useState(false);
   const [allowGuestDemo, setAllowGuestDemo] = useState(false);
@@ -356,13 +357,59 @@ export default function VivuplanPremiumApp() {
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, isLoading]);
   useEffect(() => {
     if (!mounted) return;
-    const token = getTokenFromStorage();
-    if (!token) {
-      setIsAuthed(false);
+    let cancelled = false;
+    const runInitialAuthCheck = async () => {
+      setIsAuthChecking(true);
       const promptFromUrl = searchParams.get("prompt");
-      if (promptFromUrl) { setAllowGuestDemo(true); setShowLoginGate(false); } else { setShowLoginGate(true); }
-    } else { setIsAuthed(true); setShowLoginGate(false); loadHistory(); }
-    setActiveId(newSessionId());
+      let token = getTokenFromStorage();
+
+      // Login flow can write token slightly later after redirect.
+      if (!token) {
+        for (let i = 0; i < 8 && !token; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          token = getTokenFromStorage();
+        }
+      }
+
+      if (cancelled) return;
+      if (!token) {
+        setIsAuthed(false);
+        if (promptFromUrl) { setAllowGuestDemo(true); setShowLoginGate(false); } else { setShowLoginGate(true); }
+      } else {
+        setIsAuthed(true);
+        setShowLoginGate(false);
+        setAllowGuestDemo(false);
+        await loadHistory();
+      }
+      setActiveId(newSessionId());
+      if (!cancelled) setIsAuthChecking(false);
+    };
+    runInitialAuthCheck();
+
+    return () => { cancelled = true; };
+  }, [mounted, searchParams]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const syncFromStorage = () => {
+      const token = getTokenFromStorage();
+      if (!token) return;
+      setIsAuthChecking(false);
+      setIsAuthed(true);
+      setShowLoginGate(false);
+      setAllowGuestDemo(false);
+      void loadHistory();
+    };
+
+    window.addEventListener("focus", syncFromStorage);
+    window.addEventListener("pageshow", syncFromStorage);
+    window.addEventListener("storage", syncFromStorage);
+
+    return () => {
+      window.removeEventListener("focus", syncFromStorage);
+      window.removeEventListener("pageshow", syncFromStorage);
+      window.removeEventListener("storage", syncFromStorage);
+    };
   }, [mounted]);
 
   useEffect(() => {
@@ -433,7 +480,16 @@ export default function VivuplanPremiumApp() {
     </div>
   );
 
-  if (!mounted) return null;
+  if (!mounted || isAuthChecking) {
+    return (
+      <div className="fixed inset-0 top-[68px] w-screen h-[calc(100dvh-68px)] bg-white flex items-center justify-center">
+        <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
+          <Loader2 size={18} className="animate-spin" />
+          <span>Đang kiểm tra đăng nhập...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 top-[68px] w-screen h-[calc(100dvh-68px)] bg-white text-slate-900 font-sans flex overflow-hidden text-sm shadow-inner">
